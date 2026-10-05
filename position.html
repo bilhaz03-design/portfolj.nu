@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="sv" data-upplaga="morgon">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-BYcCEfNRxvdeXky++jX7bkZvtkCex0LT2CTNPprhwOQ=' 'sha256-4cR6Da5ETjnYftuROiI3VL/cuUccdMUCxvDBPxYOQP8='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Positionen · Portföljen</title>
+<meta name="description" content="En position i Portföljen: maskinens rubrik, den stora grafen med optionernas solfjäder, ägarens egna ord och faktakollen.">
+<script>
+(function () {
+  var u = null;
+  try { u = new URLSearchParams(location.search).get('upplaga'); } catch (e) {}
+  if (u !== 'morgon' && u !== 'kvall') { try { u = localStorage.getItem('portfoljen.v2.upplaga'); } catch (e) { u = null; } }
+  if (u !== 'morgon' && u !== 'kvall') { try { u = matchMedia('(prefers-color-scheme: dark)').matches ? 'kvall' : 'morgon'; } catch (e) { u = 'morgon'; } }
+  document.documentElement.setAttribute('data-upplaga', u);
+})();
+</script>
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="tidning.css">
+<style>.masthead.small{padding-top:10px}.masthead.small .nameplate{font-size:44px}@media (max-width:760px){.masthead.small .nameplate{font-size:38px}}</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="topbar"><span class="tag" id="tag"></span><div class="ctrls" id="ctrls"></div></div>
+  <header class="masthead small" aria-label="Tidningshuvud">
+    <div class="ear left" id="ear-left"></div>
+    <p class="nameplate"><a href="index.html" id="np-link">Portföljen</a></p>
+    <div class="ear right" id="ear-right"></div>
+  </header>
+  <div class="rules" aria-hidden="true"></div>
+  <nav class="posnav" id="posnav" aria-label="Positionerna"></nav>
+
+  <article class="article">
+    <header class="ahead">
+      <p class="kick" id="kick"></p>
+      <h1 id="a-h1"></h1>
+      <p class="dek" id="a-dek"></p>
+      <div class="byline" id="a-byline"></div>
+    </header>
+    <figure class="bigchart" style="margin-left:0;margin-right:0">
+      <div class="legend" id="legend"></div>
+      <div class="chartwrap" id="bigchart"></div>
+      <p class="caption" id="caption"></p>
+      <details class="numbers"><summary id="chart-sum"></summary><table class="t" id="chart-table"></table></details>
+    </figure>
+    <section class="figs" id="figs" aria-label="Positionen i siffror"></section>
+    <section class="twocol">
+      <div class="yours"><h2 id="yours-h"></h2><dl id="yours"></dl></div>
+      <div class="check"><h2 id="check-h"></h2><ol id="check"></ol></div>
+    </section>
+    <section class="lowerpos">
+      <div class="plan"><h2 id="plan-h"></h2><div class="plan-body" id="plan-body"></div></div>
+      <div class="optbox"><h2 id="opt-h"></h2><div id="opt-body"></div></div>
+    </section>
+  </article>
+  <footer class="foot" id="foot"></footer>
+</div>
+<noscript><p style="padding:24px 40px">Portföljen behöver JavaScript för att läsa datan i data.js. Portföljen needs JavaScript to read the data in data.js.</p></noscript>
+<script src="data.js"></script>
+<script src="tidning.js"></script>
+<script>
+(function () {
+  'use strict';
+  const T = window.Tidning;
+  if (!T) { document.querySelector('.sheet').insertAdjacentHTML('afterbegin', '<p style="padding:24px 0">Datan saknas: data.js kunde inte läsas.</p>'); return; }
+  T.positionssida();
+  window.addEventListener('hashchange', () => T.positionssida());
+})();
+</script>
+</body>
+</html>

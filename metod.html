@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="sv" data-upplaga="morgon">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-BYcCEfNRxvdeXky++jX7bkZvtkCex0LT2CTNPprhwOQ=' 'sha256-6psBxJ6u7UXNWekHubeRvqK7ZENfM0mW4gM8BgEhSFg='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Metoden · Portföljen</title>
+<meta name="description" content="Så räknas talen i Portföljen: mallen, regelmotorn, brusrisken, riktkurser ur optionspriser, jämförelsen mot MSCI World och vad som inte mäts.">
+<script>
+(function () {
+  var u = null;
+  try { u = new URLSearchParams(location.search).get('upplaga'); } catch (e) {}
+  if (u !== 'morgon' && u !== 'kvall') { try { u = localStorage.getItem('portfoljen.v2.upplaga'); } catch (e) { u = null; } }
+  if (u !== 'morgon' && u !== 'kvall') { try { u = matchMedia('(prefers-color-scheme: dark)').matches ? 'kvall' : 'morgon'; } catch (e) { u = 'morgon'; } }
+  document.documentElement.setAttribute('data-upplaga', u);
+})();
+</script>
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="tidning.css">
+<style>.masthead.small{padding-top:10px}.masthead.small .nameplate{font-size:44px}@media (max-width:760px){.masthead.small .nameplate{font-size:38px}}</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="topbar"><span class="tag" id="tag"></span><div class="ctrls" id="ctrls"></div></div>
+  <header class="masthead small" aria-label="Tidningshuvud">
+    <div class="ear left" id="ear-left"></div>
+    <p class="nameplate"><a href="index.html" id="np-link">Portföljen</a></p>
+    <div class="ear right" id="ear-right"></div>
+  </header>
+  <div class="rules" aria-hidden="true"></div>
+  <header class="mhead"><h1 id="m-h1"></h1><p id="m-ingress"></p></header>
+  <div class="mbody">
+    <nav class="toc" aria-label="Innehåll"><ol id="toc"></ol></nav>
+    <div id="metod"></div>
+  </div>
+  <footer class="foot" id="foot"></footer>
+</div>
+<noscript><p style="padding:24px 40px">Portföljen behöver JavaScript för att läsa datan i data.js. Portföljen needs JavaScript to read the data in data.js.</p></noscript>
+<script src="data.js"></script>
+<script src="tidning.js"></script>
+<script src="metod-text.js"></script>
+<script>
+(function () {
+  'use strict';
+  const T = window.Tidning;
+  if (!T) { document.querySelector('.sheet').insertAdjacentHTML('afterbegin', '<p style="padding:24px 0">Datan saknas: data.js kunde inte läsas.</p>'); return; }
+  T.metod();
+})();
+</script>
+</body>
+</html>
