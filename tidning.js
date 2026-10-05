@@ -2,9 +2,11 @@
    Läser window.SNAPSHOT (../data.js) och skriver tidningen: rubriker, ingress, I korthet, faktakollen och graferna.
    Inga sidoeffekter vid laddning: sidorna anropar Tidning.forsta(), Tidning.positionssida() eller Tidning.metod().
    Bobbo OS-vyn (../v2-brutal/) använder samma rubrikmotor och samma grafer i sin egen uniform.
-   Vyn räknar inget som påverkar ett beslut: regelläge, avstånd, brus, optionsmål och chanser kommer färdiga ur datan.
-   Det vyn härleder är presentation: procentenheter, solfjäderns form mellan i dag och tolv månader (ändpunkterna är
-   datans kvantiler), och portföljens försprång i procentenheter för publikläget. */
+   Vyn räknar inget som påverkar ett beslut: sådant kommer färdigt ur datan. Det vyn härleder är presentation:
+   procentenheter, solfjäderns form mellan i dag och tolv månader (ändpunkterna är datans kvantiler), och portföljens
+   försprång i procentenheter för publikläget.
+   Konceptets privata delar står mellan raderna // PRIVAT-START och // PRIVAT-SLUT. Den publika sajten får filen utan
+   dem (bygg-publik.py), så varje sådant avsnitt måste vara hela satser som koden klarar sig utan i publikläget. */
 (function (root) {
 'use strict';
 const S = root.SNAPSHOT;
@@ -124,45 +126,49 @@ const TINY = { ENR: 'Siemens', PLTR: 'Palantir', NVDA: 'Nvidia', EME: 'Emcor', F
 const CAL = { 'ENR.DE': 'Siemens Energy', PLTR: 'Palantir', NVDA: 'Nvidia', EME: 'Emcor', '005930.KS': 'Samsung', '000660.KS': 'SK hynix' };
 const short = t => String(t || '').replace(/\.[A-Z]{1,3}$/, '');
 const exchange = p => { const m = /\(([^)]*)\)\s*$/.exec(p.held_name || ''); if (!m) return ''; const parts = m[1].split(','); return parts[parts.length - 1].trim(); };
-const STATE = {
-  'INTAKT': { sym: '●', sv: 'Intakt', en: 'Intact', cls: 'ok' },
-  'VARNING': { sym: '◆', sv: 'Varning', en: 'Warning', cls: 'bad' },
-  'PÅ VÄG': { sym: '◐', sv: 'På väg', en: 'Closing in', cls: 'bad' },
-  'UTLÖST': { sym: '■', sv: 'Utlöst', en: 'Triggered', cls: 'bad' },
-};
-const stateOf = p => STATE[p.rule.state] || { sym: '?', sv: p.rule.state, en: p.rule.state, cls: 'bad' };
-const stateWord = p => stateOf(p)[state.lang];
-const ruleLvl = p => (p.levels || []).find(l => Math.abs(l.level - p.rule.level) < 1e-9 && l.tf === p.rule.tf) || null;
-const ruleDist = p => { const l = ruleLvl(p); return l ? l.dist : p.chart_px / p.rule.level - 1; };
-const ruleAtr = p => { const l = ruleLvl(p); return l ? l.dist_atr : null; };
-const noise5 = p => ((p.rule || {}).noise_touch || {})['5d'];
-const noise21 = p => ((p.rule || {}).noise_touch || {})['21d'];
-const near = () => minBy(POS, p => Math.abs(ruleDist(p)));
 const regW = p => (p.regression || []).find(r => r.tf === 'W' && r.channel) || null;
 const regD = p => (p.regression || []).find(r => r.tf === 'D' && r.channel) || null;
 const atWeeklyEdge = p => { const w = regW(p); return !!(w && w.channel.dir === 'upp' && w.channel.z <= -1.8); };
 const hasOpt = p => { const o = p.oiret || {}; return !o.err && !!o.quantiles_12m && ok(o.er) && ok(o.sigma) && ok(o.target_12m); };
 const approxMonths = o => { const m = /löptid ([\d.]+) år/.exec(o.approx || ''); return m ? Math.round(parseFloat(m[1]) * 12) : 6; };
 const outside = o => !!(o.evidence && /^UTANFÖR/i.test(o.evidence));
-function otherLevel(p) {
-  return (p.levels || []).find(l => Math.abs(l.level - p.rule.level) > 1e-9) || null;
+/* ================= bloggen (publikläget): senaste händelsen, nivåerna Bilel följer och målet =================
+   Publikt visas bara det bloggen säger: senaste händelsen, nivåerna Bilel följer som prisnivåer utan namn, och målet ur
+   optionerna. Varje publik väg nedan styrs av pub(), inte av att fälten saknas, så att konceptets publikläge (full data)
+   och den publika sajten (avskalad data, bygg-publik.py) skriver exakt samma sak. */
+const BLOGG = (root.PORTFOLJ_BLOGG && root.PORTFOLJ_BLOGG.innehav) || {};
+const senaste = p => BLOGG[p.id] || null;
+const senasteText = p => { const b = senaste(p); return b ? L(b.sv, b.en) : null; };
+function watched(p) {
+  let v = (p.nivaer || []).map(x => x.level);
+  return [...new Set(v.filter(ok).map(x => Math.round(x * 100) / 100))].sort((a, b) => b - a);
 }
+const levelsText = p => { const w = watched(p); return w.length ? w.map(px).join(L(' och ', ' and ')) + ' ' + ccyWord(p.chart_ccy) + (p.chart !== p.held ? ' (' + p.chart + ')' : '') : '—'; };
+const malTal = p => (hasOpt(p) ? Math.round(p.oiret.target_12m) : null);
+/* målet som belopp, i hela tal ("222 dollar"); money() visar två decimaler under 1 000 */
+const malBelopp = p => (malTal(p) === null ? '—' : en() ? p.chart_ccy + NB + num(malTal(p), 0) : num(malTal(p), 0) + NB + (CCYW[p.chart_ccy] || p.chart_ccy));
+/* varför ett mål ligger utanför studiens bevis: en ETF (Koreafonden) eller en aktie utanför S&P 500 (Siemens Energy) */
+const isEtf = o => /ETF/.test(o.evidence || '');
+function malNot(p) {
+  const o = p.oiret || {}, bits = [];
+  if (o.kalla === 'Eurex') bits.push(L('optioner från Eurex', 'options from Eurex'));
+  if (o.kalla === 'EWY') bits.push(L('optioner på EWY', 'options on EWY'));
+  if (o.approx) bits.push(L('optioner bara till ca ' + approxMonths(o) + ' mån', 'options only to about ' + approxMonths(o) + ' mo'));
+  if (o.metod === 'rå') bits.push(L('tunn optionskedja', 'thin option chain'));
+  if (outside(o)) bits.push(isEtf(o) ? L('ETF, utanför studiens bevis', "ETF, outside the study's evidence") : L('utanför studiens bevis', "outside the study's evidence"));
+  return bits.join(', ');
+}
+const malText = p => (malTal(p) === null ? L('inget mål: inga optioner hos datakällan', 'no target: no options at the data source') : num(malTal(p), 0) + ' ' + ccyWord(p.chart_ccy));
+const leadWord = () => (P.ret >= P.msci_ret ? L('före', 'ahead of') : L('efter', 'behind'));
 const ccyWord = c => (en() ? c : (CCYW[c] || c));
-const levelText = p => px(p.rule.level) + ' ' + ccyWord(p.chart_ccy) + (p.chart !== p.held ? ' (' + p.chart + ')' : '');
-function ruleWords(p, withLevel) {
-  const r = p.rule, n = r.need;
-  if (en()) {
-    const tf = { '4H': 'four-hour', D: 'daily', W: 'weekly' }[r.tf] || r.tf;
-    return (n === 1 ? 'the first ' + tf + ' close' : (n === 2 ? 'two ' : n + ' ') + tf + ' closes') + ' below' + (withLevel ? ' ' + px(r.level) : '');
-  }
-  const tf = { '4H': 'fyratimmars', D: 'dags', W: 'vecko' }[r.tf] || r.tf;
-  return (n === 1 ? 'första ' + tf + 'stängningen' : (n === 2 ? 'två ' : n + ' ') + tf + 'stängningar') + ' under' + (withLevel ? ' ' + px(r.level) : '');
-}
 function oiNote(o, shortForm) {
   if (!o || o.err) return '';
   const bits = [shortForm ? L('prel.', 'prelim.') : L('preliminär', 'preliminary')];
   if (o.approx) bits.push(shortForm ? L(approxMonths(o) + ' mån uppräknat', approxMonths(o) + ' mo annualised') : L('bara ca ' + approxMonths(o) + ' mån optioner, uppräknat', 'only about ' + approxMonths(o) + ' months of options, annualised'));
-  if (outside(o)) bits.push(shortForm ? L('ETF, utanför evidensen', 'ETF, outside the evidence') : L('ETF utanför studiens evidens', "an ETF outside the study's evidence"));
+  if (o.kalla === 'Eurex') bits.push(shortForm ? 'Eurex' : L('Eurex avräkningspriser', 'Eurex settlement prices'));
+  if (o.kalla === 'EWY') bits.push(shortForm ? 'EWY' : L('optionerna på EWY', 'the options on EWY'));
+  if (outside(o)) bits.push(isEtf(o) ? (shortForm ? L('ETF, utanför evidensen', 'ETF, outside the evidence') : L('ETF utanför studiens evidens', "an ETF outside the study's evidence"))
+    : (shortForm ? L('utanför evidensen', 'outside the evidence') : L('aktie utanför studiens evidens (bara S&P 500)', "a stock outside the study's evidence (S&P 500 only)")));
   return bits.join(', ');
 }
 function events() {
@@ -189,126 +195,87 @@ const edDate = ed => (ed === 'kvall' ? ASOF : nextWeekday(ASOF));
 const listNames = arr => { const n = arr.map(nm); return n.length < 2 ? n.join('') : n.slice(0, -1).join(', ') + L(' och ', ' and ') + n[n.length - 1]; };
 
 /* ================= maskinen skriver ================= */
-function headline(ed) {
-  const trig = POS.filter(p => p.rule.state === 'UTLÖST'), pav = POS.filter(p => p.rule.state === 'PÅ VÄG'), varn = POS.filter(p => p.rule.state === 'VARNING');
-  const nr = near(), nd = ruleDist(nr);
-  if (trig.length) return ed === 'morgon'
-    ? L(listNames(trig) + ': exitregeln utlöstes vid stängningen', listNames(trig) + ': exit rule triggered at the close')
-    : L('Exitregeln utlöst för ' + listNames(trig), 'Exit rule triggered for ' + listNames(trig));
-  if (pav.length) { const p = pav[0]; return L(nm(p) + ' under regelnivån, ' + p.rule.closes_beyond + ' av ' + p.rule.need + ' stängningar', nm(p) + ' below its rule level, ' + p.rule.closes_beyond + ' of ' + p.rule.need + ' closes'); }
-  if (varn.length) return L(nm(varn[0]) + ' har stängt under varningsnivån', nm(varn[0]) + ' has closed below its warning level');
-  if (ed === 'morgon') {
-    const monday = D(edDate(ed)).getUTCDay() === 1;
-    return L(nm(nr) + ' ' + pctU(Math.abs(nd)) + (nd >= 0 ? ' över' : ' under') + ' sin regelnivå ' + (monday ? 'när veckan börjar' : 'inför dagens handel'),
-      nm(nr) + ' ' + pctU(Math.abs(nd)) + (nd >= 0 ? ' above' : ' below') + ' its rule level ' + (monday ? 'as the week begins' : 'ahead of trading'));
-  }
-  const mv = maxBy(POS, p => Math.abs(p.day_local)), top = maxBy(POS, p => p.pnl_sek);
-  let a, used;
-  if (Math.abs(mv.day_local) >= 0.02) { a = L(nm(mv) + (mv.day_local > 0 ? ' steg ' : ' föll ') + pctU(Math.abs(mv.day_local)), nm(mv) + (mv.day_local > 0 ? ' rises ' : ' falls ') + pctU(Math.abs(mv.day_local))); used = mv.id; }
-  else { a = top.pnl_sek / P.pnl_sek > 0.5 ? L(nm(top) + ' bär portföljen', nm(top) + ' carries the portfolio') : L(nm(top) + ' ger mest', nm(top) + ' leads the gains'); used = top.id; }
-  const edge = POS.filter(p => p.id !== used && atWeeklyEdge(p));
-  let b;
-  if (edge.length === 1) b = L(nm(edge[0]) + ' vid veckokanalens nedre kant', nm(edge[0]) + ' at the lower edge of its weekly channel');
-  else if (edge.length > 1) b = L(edge.length + ' innehav vid veckokanalens nedre kant', edge.length + ' holdings at the lower edge of their weekly channels');
-  else b = nr.id !== used ? L(nm(nr) + ' närmast sin regelnivå', nm(nr) + ' closest to its rule level') : L('inga regler utlösta', 'no rules triggered');
-  return cap(a) + ', ' + b;
+/* --- publikt: om avkastningen, försprånget och händelserna, aldrig om regler --- */
+function headlinePub(ed) {
+  const lead = Math.abs(P.ret - P.msci_ret) * 100;
+  const s = L('portföljen ' + num(lead, 1) + ' procentenheter ' + leadWord() + ' världsindex', 'the portfolio ' + num(lead, 1) + ' percentage points ' + leadWord() + ' the world index');
+  const mv = maxBy(POS, p => Math.abs(p.day_local));
+  if (ed === 'kvall' && Math.abs(mv.day_local) >= 0.02) return L(nm(mv) + (mv.day_local > 0 ? ' steg ' : ' föll ') + pctU(Math.abs(mv.day_local)), cap(prose(mv)) + (mv.day_local > 0 ? ' rises ' : ' falls ') + pctU(Math.abs(mv.day_local))) + ', ' + s;
+  return cap(s);
 }
-
-function nearSentence(nr) {
-  // "Siemens Energy ligger närmast: kursen 4,5 % över 139,16 euro" (nivån är basen)
-  const nd = ruleDist(nr);
-  return L(nm(nr) + ' ligger närmast: kursen ' + pctU(Math.abs(nd)) + (nd >= 0 ? ' över ' : ' under ') + money(nr.rule.level, nr.chart_ccy),
-    cap(prose(nr)) + ' is closest: the price is ' + pctU(Math.abs(nd)) + (nd >= 0 ? ' above ' : ' below ') + money(nr.rule.level, nr.chart_ccy));
-}
-function lede(ed) {
-  const nr = near(), bad = POS.filter(p => p.rule.state !== 'INTAKT');
-  const top = maxBy(POS, p => p.pnl_sek), day = ASOF;
-  const rules = bad.length === 0 ? null : L(bad.length + ' av fem regler kräver uppmärksamhet: ' + bad.map(p => nm(p) + ' (' + stateWord(p).toLowerCase() + ')').join(', ') + '.',
-    bad.length + ' of five rules need attention: ' + bad.map(p => nm(p) + ' (' + stateWord(p).toLowerCase() + ')').join(', ') + '.');
-  if (ed === 'morgon') {
-    const ev = events()[0];
-    const s1 = rules || L('Ingen av de fem exitreglerna utlöstes vid ' + wd(day) + 'ens stängning.', "None of the five exit rules triggered at " + wd(day) + "'s close.");
-    const s2 = nearSentence(nr) + L(', och vanlig svängning når dit inom fem dagar i ' + pct0(noise5(nr)) + ' av fallen; ', ', and ordinary swings reach it within five days in ' + pct0(noise5(nr)) + ' of cases; ')
-      + LV('din regel säljer vid ', 'regeln säljer vid ', 'your rule sells on ', 'the rule sells on ') + ruleWords(nr, false) + L('.', ' it.');
-    const s3 = pub()
-      ? L('Portföljen ligger ' + pctU(P.ret) + ' över vad köpen kostade, ' + num((P.ret - P.msci_ret) * 100, 1) + ' procentenheter ' + (P.ret >= P.msci_ret ? 'före' : 'efter') + ' samma insats i MSCI World.',
-        'The portfolio stands ' + pctU(P.ret) + ' above what the purchases cost, ' + num((P.ret - P.msci_ret) * 100, 1) + ' percentage points ' + (P.ret >= P.msci_ret ? 'ahead of' : 'behind') + ' the same money in MSCI World.')
-      : L('Portföljen står på ' + kronor(P.value_sek) + ', ' + pctU(P.ret) + ' över vad köpen kostade och ' + num((P.ret - P.msci_ret) * 100, 1) + ' procentenheter ' + (P.ret >= P.msci_ret ? 'före' : 'efter') + ' samma kronor i MSCI World.',
-        'The portfolio stands at ' + kronor(P.value_sek) + ', ' + pctU(P.ret) + ' above what the purchases cost and ' + num((P.ret - P.msci_ret) * 100, 1) + ' percentage points ' + (P.ret >= P.msci_ret ? 'ahead of' : 'behind') + ' the same money in MSCI World.');
-    const s4 = ev ? L('Nästa rapport: ' + evName(ev) + ' ' + dS(ev.d) + (ev.inner ? ', i ' + nm(ev.p) : '') + '.', 'Next report: ' + evName(ev) + ' on ' + dS(ev.d) + (ev.inner ? ', held through ' + prose(ev.p) : '') + '.') : '';
-    return [s1, s2, s3, s4].filter(Boolean).join(' ');
-  }
-  const up = P.day_sek >= 0;
-  const s1 = pub()
-    ? L('Portföljen ' + (up ? 'steg ' : 'föll ') + pctU(Math.abs(P.day_ret)) + ' ' + onDay(day) + ' och ligger ' + pctU(P.ret) + ' över vad köpen kostade; samma insats i MSCI World hade gett ' + pctU(P.msci_ret) + '.',
-      'The portfolio ' + (up ? 'rose ' : 'fell ') + pctU(Math.abs(P.day_ret)) + ' ' + onDay(day) + ' and stands ' + pctU(P.ret) + ' above what the purchases cost; the same money in MSCI World would have made ' + pctU(P.msci_ret) + '.')
-    : L('Portföljen ' + (up ? 'steg ' : 'föll ') + kronor(Math.abs(P.day_sek)) + ' ' + onDay(day) + ' och är värd ' + kronor(P.value_sek) + ', ' + pctU(P.ret) + ' mer än köpen kostade; samma kronor i MSCI World hade gett ' + pctU(P.msci_ret) + '.',
-      'The portfolio ' + (up ? 'rose ' : 'fell ') + kronor(Math.abs(P.day_sek)) + ' ' + onDay(day) + ' and is worth ' + kronor(P.value_sek) + ', ' + pctU(P.ret) + ' more than the purchases cost; the same money in MSCI World would have made ' + pctU(P.msci_ret) + '.');
-  let s2 = '';
-  if (P.pnl_sek > 0 && top.pnl_sek > 0) s2 = pub()
-    ? L(nm(top) + ' står för ' + pctU(top.pnl_sek / P.pnl_sek, 0) + ' av vinsten.', cap(prose(top)) + ' accounts for ' + pctU(top.pnl_sek / P.pnl_sek, 0) + ' of the gain.')
-    : L(nm(top) + ' står för ' + num(top.pnl_sek, 0) + ' av de ' + kronor(P.pnl_sek) + 'na i vinst.', cap(prose(top)) + ' accounts for ' + kr(top.pnl_sek) + ' of the ' + kr(P.pnl_sek) + ' gain.');
-  const s3 = rules || L('Ingen exitregel har utlösts.', 'No exit rule has triggered.');
-  const s4 = rules ? '' : nearSentence(nr) + L(', så nära att vanlig svängning når dit inom fem dagar i ' + pct0(noise5(nr)) + ' av fallen.', ', close enough that ordinary swings reach it within five days in ' + pct0(noise5(nr)) + ' of cases.');
+function ledePub(ed) {
+  const top = maxBy(POS, p => p.pnl_sek), ev = events()[0];
+  const s1 = L('Målet är att slå världsindex. Portföljen har gett ' + pctS(P.ret) + ' på vad köpen kostade, och samma insats i MSCI World ' + pctS(P.msci_ret) + '.',
+    'The aim is to beat the world index. The portfolio has made ' + pctS(P.ret) + ' on what the purchases cost, and the same money in MSCI World ' + pctS(P.msci_ret) + '.');
+  const s2 = P.pnl_sek > 0 && top.pnl_sek > 0 ? L(nm(top) + ' står för ' + pctU(top.pnl_sek / P.pnl_sek, 0) + ' av vinsten.', cap(prose(top)) + ' accounts for ' + pctU(top.pnl_sek / P.pnl_sek, 0) + ' of the gain.') : '';
+  const s3 = ed === 'kvall' ? L('Portföljen ' + (P.day_ret >= 0 ? 'steg ' : 'föll ') + pctU(Math.abs(P.day_ret)) + ' ' + onDay(ASOF) + '.', 'The portfolio ' + (P.day_ret >= 0 ? 'rose ' : 'fell ') + pctU(Math.abs(P.day_ret)) + ' ' + onDay(ASOF) + '.') : '';
+  const s4 = ev ? L('Nästa rapport: ' + evName(ev) + ' ' + dS(ev.d) + (ev.inner ? ', i ' + nm(ev.p) : '') + '.', 'Next report: ' + evName(ev) + ' on ' + dS(ev.d) + (ev.inner ? ', held through ' + prose(ev.p) : '') + '.') : '';
   return [s1, s2, s3, s4].filter(Boolean).join(' ');
 }
+function briefPub(ed) {
+  const ev = events(), lead = L('Mot MSCI World: ' + ppS(P.ret - P.msci_ret) + ' sedan köpen.', 'Against MSCI World: ' + ppS(P.ret - P.msci_ret) + ' since the purchases.');
+  if (ed === 'morgon') {
+    const M = S.macro || {}, m = k => (M[k] && !M[k].err ? M[k] : null);
+    const parts = [['^GSPC', 'S&P 500'], ['^NDX', 'Nasdaq 100'], ['^KS11', 'KOSPI']].filter(([k]) => m(k)).map(([k, lab]) => lab + ' ' + pctS(m(k).chg));
+    const vix = m('^VIX'), mDay = (m('^GSPC') || {}).asof || ASOF;
+    const s1 = L('Senaste stängning, ' + wd(mDay) + ': ', 'Latest close, ' + wd(mDay) + ': ') + parts.join(', ') + (vix ? L(' och VIX ', ' and VIX ') + num(vix.last, 1) : '') + '.';
+    const week = ev.filter(e => e.d <= addDays(edDate(ed), 6));
+    const s2 = week.length ? L('Veckan: ' + evList(week) + '.', 'This week: ' + evList(week) + '.') : L('Veckan: inga rapporter; nästa är ' + (ev[0] ? evList([ev[0]]) : '—') + '.', 'This week: no reports; the next is ' + (ev[0] ? evList([ev[0]]) : '—') + '.');
+    return [s1, s2, lead];
+  }
+  const mv = maxBy(POS, p => Math.abs(p.day_local));
+  const s1 = L('Största rörelsen var ' + nm(mv) + ', ' + pctS(mv.day_local) + '. Hela portföljen ' + pctS(P.day_ret) + '.', 'The biggest move was ' + prose(mv) + ', ' + pctS(mv.day_local) + '. The whole portfolio ' + pctS(P.day_ret) + '.');
+  const s3 = ev.length ? L('Nästa rapporter: ', 'Next reports: ') + evList(ev.slice(0, 4)) + '.' : L('Inga rapportdatum i datan.', 'No report dates in the data.');
+  return [s1, lead, s3];
+}
+function dekPub(p) {
+  const where = p.chart !== p.held ? L(' (' + p.chart + ')', ' (' + p.chart + ')') : '';
+  const s1 = L('Kursen ' + money(p.chart_px, p.chart_ccy) + where + ', ' + pctS(p.ret) + ' sedan köpet och ' + ppS(p.ret - p.msci_ret) + ' mot samma insats i MSCI World.',
+    'The price is ' + money(p.chart_px, p.chart_ccy) + where + ', ' + pctS(p.ret) + ' since purchase and ' + ppS(p.ret - p.msci_ret) + ' against the same money in MSCI World.');
+  const s2 = malTal(p) === null ? L(' Datakällan har inga optioner för aktien, så inget mål kan räknas.', ' The data source has no options for the stock, so no target can be calculated.')
+    : L(' Optionerna säger ' + malBelopp(p) + ' om ett år.', ' The options say ' + malBelopp(p) + ' in a year.');
+  return s1 + s2;
+}
+function chartCaptionPub(p) {
+  const o = p.oiret || {}, parts = [L('Så läser du grafen. ', 'How to read the chart. ')];
+  parts.push(L('Kursen är ' + px(p.chart_px) + '. De streckade linjerna är nivåer Bilel följer: ' + levelsText(p) + '. ', 'The price is ' + px(p.chart_px) + '. The dashed lines are levels Bilel follows: ' + levelsText(p) + '. '));
+  if (hasOpt(p)) {
+    const q = o.quantiles_12m;
+    parts.push(L('Till höger om i dag visar solfjädern vad optionspriserna säger om nästa år: hälften av utfallen mellan ' + px(q.q25) + ' och ' + px(q.q75) + ' och det förväntade priset ' + px(o.target_12m) + ', avrundat till målet ' + num(malTal(p), 0) + '.',
+      'Right of today, the fan shows what option prices say about the next year: half of outcomes between ' + px(q.q25) + ' and ' + px(q.q75) + ' and the expected price ' + px(o.target_12m) + ', rounded to the target ' + num(malTal(p), 0) + '.'));
+    if (malNot(p)) parts.push(L(' Obs: ' + malNot(p) + '.', ' Note: ' + malNot(p) + '.'));
+  } else parts.push(L('Till höger om i dag visar bandet hur långt vanlig svängning brukar nå på 21 handelsdagar. Det är ingen prognos; datakällan har inga optioner för aktien.', 'Right of today, the band shows how far ordinary swings usually reach in 21 trading days. It is not a forecast; the data source has no options for the stock.'));
+  if (p.chart !== p.held) parts.push(L(' Grafen visar ' + p.chart + ' i dollar; innehavet är ' + short(p.held) + ' i euro.', ' The chart shows ' + p.chart + ' in dollars; the holding is ' + short(p.held) + ' in euros.'));
+  return parts.join('');
+}
+
+function headline(ed) {
+  if (pub()) return headlinePub(ed);
+}
+
+function lede(ed) {
+  if (pub()) return ledePub(ed);
+}
 const byline = () => LV('Skriven av maskinen ur kurserna och dina positionskort. Dina egna ord står i kursiv.',
-  'Skriven av maskinen ur kurserna och positionskorten. Bilels egna ord står i kursiv.',
+  'Skriven av maskinen ur kurserna. Bilels egna ord står i kursiv.',
   'Written by the machine from prices and your position cards. Your own words are in italics.',
-  "Written by the machine from prices and the position cards. Bilel's own words are in italics.");
+  "Written by the machine from prices. Bilel's own words are in italics.");
 
 function briefLabel(ed) {
   const day = edDate(ed);
   return ed === 'kvall' ? L('Rapporten ' + wd(day) + ' 22:15', wd(day) + "'s 22:15 report") : L('Rapporten ' + wd(day) + ' 09:00', wd(day) + "'s 09:00 report");
 }
 function brief(ed) {
-  const nr = near(), nd = ruleDist(nr), bad = POS.filter(p => p.rule.state !== 'INTAKT'), ev = events();
-  const nearTxt = L(nm(nr) + ', ' + pctU(Math.abs(nd)) + (nd >= 0 ? ' över ' : ' under ') + px(nr.rule.level), prose(nr) + ', ' + pctU(Math.abs(nd)) + (nd >= 0 ? ' above ' : ' below ') + px(nr.rule.level));
-  const noiseTxt = L('vanlig svängning når dit inom fem dagar i ' + pct0(noise5(nr)) + ' av fallen.', 'ordinary swings reach it within five days in ' + pct0(noise5(nr)) + ' of cases.');
-  if (ed === 'morgon') {
-    const M = S.macro || {}, m = k => (M[k] && !M[k].err ? M[k] : null);
-    const parts = [['^GSPC', 'S&P 500'], ['^NDX', 'Nasdaq 100'], ['^KS11', 'KOSPI']].filter(([k]) => m(k)).map(([k, lab]) => lab + ' ' + pctS(m(k).chg));
-    const vix = m('^VIX');
-    const mDay = (m('^GSPC') || {}).asof || ASOF;
-    const s1 = L('Senaste stängning, ' + wd(mDay) + ': ', 'Latest close, ' + wd(mDay) + ': ') + parts.join(', ') + (vix ? L(' och VIX ', ' and VIX ') + num(vix.last, 1) : '') + '.';
-    const s2 = bad.length
-      ? L('Att bevaka: ', 'To watch: ') + bad.map(p => nm(p) + ' (' + stateWord(p).toLowerCase() + ')').join(', ') + '.'
-      : L('Att bevaka: ', 'To watch: ') + nearTxt + '; ' + LV('din regel säljer vid ', 'regeln säljer vid ', 'your rule sells on ', 'the rule sells on ') + ruleWords(nr, false) + L('. Vanlig svängning når nivån inom fem dagar i ' + pct0(noise5(nr)) + ' av fallen.', ' it. Ordinary swings reach the level within five days in ' + pct0(noise5(nr)) + ' of cases.');
-    const week = ev.filter(e => e.d <= addDays(edDate(ed), 6));
-    const nHeld = POS.filter(p => ok(p.px) && ok(p.chart_px)).length, keys = Object.keys(M), nMac = keys.filter(k => M[k] && !M[k].err && ok(M[k].last)).length;
-    const s3 = (week.length ? L('Veckan: ' + evList(week) + '.', 'This week: ' + evList(week) + '.') : L('Veckan: inga rapporter; nästa är ' + (ev[0] ? evList([ev[0]]) : '—') + '.', 'This week: no reports; the next is ' + (ev[0] ? evList([ev[0]]) : '—') + '.'))
-      + L(' Datan: ' + nHeld + ' av ' + POS.length + ' innehav och ' + nMac + ' av ' + keys.length + ' marknader lästa utan fel.', ' Data: ' + nHeld + ' of ' + POS.length + ' holdings and ' + nMac + ' of ' + keys.length + ' markets read without errors.');
-    return [s1, s2, s3];
-  }
-  const s1 = bad.length
-    ? LV(bad.length + ' av dina fem säljregler larmar: ', bad.length + ' av de fem säljreglerna larmar: ', bad.length + ' of your five sell rules are flagging: ', bad.length + ' of the five sell rules are flagging: ') + bad.map(p => nm(p) + ' ' + stateWord(p).toLowerCase()).join(', ') + '.'
-    : LV('Ingen av dina fem säljregler har slagit till.', 'Ingen av de fem säljreglerna har slagit till.', 'None of your five sell rules has triggered.', 'None of the five sell rules has triggered.')
-      + L(' Närmast är ', ' Closest is ') + nearTxt + '; ' + noiseTxt;
-  const mv = maxBy(POS, p => Math.abs(p.day_local));
-  const s2 = L('Största rörelsen var ' + nm(mv) + ', ' + pctS(mv.day_local) + '.', 'The biggest move was ' + prose(mv) + ', ' + pctS(mv.day_local) + '.')
-    + (pub() ? L(' Hela portföljen ' + pctS(P.day_ret) + '.', ' The whole portfolio ' + pctS(P.day_ret) + '.') : L(' Hela portföljen ' + krS(P.day_sek) + ', ' + pctS(P.day_ret) + '.', ' The whole portfolio ' + krS(P.day_sek) + ', ' + pctS(P.day_ret) + '.'));
-  const s3 = ev.length ? L('Nästa rapporter: ', 'Next reports: ') + evList(ev.slice(0, 4)) + '.' : L('Inga rapportdatum i datan.', 'No report dates in the data.');
-  return [s1, s2, s3];
+  if (pub()) return briefPub(ed);
 }
 
 function storyHeadline(p) {
-  const n = nm(p), st = p.rule.state;
-  if (st === 'UTLÖST') return L(n + ': exitregeln har utlösts', n + ': the exit rule has triggered');
-  if (st === 'PÅ VÄG') return L(n + ' under regelnivån, ' + p.rule.closes_beyond + ' av ' + p.rule.need + ' stängningar', n + ' below its rule level, ' + p.rule.closes_beyond + ' of ' + p.rule.need + ' closes');
-  if (st === 'VARNING') return L(n + ' har stängt under varningsnivån', n + ' has closed below its warning level');
+  const n = nm(p);
   if (Math.abs(p.day_local) >= 0.03) return L(n + (p.day_local > 0 ? ' steg ' : ' föll ') + pctU(Math.abs(p.day_local)) + ' ' + onDay(p.asof), n + (p.day_local > 0 ? ' rose ' : ' fell ') + pctU(Math.abs(p.day_local)) + ' ' + onDay(p.asof));
   if (atWeeklyEdge(p)) return L(n + ' vilar på veckokanalens nedre kant', n + ' rests on the lower edge of its weekly channel');
   const closes = p.series.d_close, last = closes[closes.length - 1], hi = Math.max(...closes);
   if (last >= hi) return L(n + ' stängde på ettårshögsta', n + ' closed at a one-year high');
   if (last >= 0.985 * hi) return L(n + ' ' + pctU(1 - last / hi) + ' under ettårstoppen', n + ' ' + pctU(1 - last / hi) + ' below its one-year high');
-  const nums = (p.plan_hold || '').match(/\d+(?:[.,]\d+)?/g);
-  if (nums && nums.length) {
-    const lv = Math.max(...nums.map(x => parseFloat(x.replace(',', '.'))));
-    if (p.chart_px > lv) {
-      const back = closes.slice(-20).some(c => c < lv);
-      return L(n + (back ? ' tillbaka över ' : ' över ') + num(lv, 0) + ', där planen vill se stöd', n + (back ? ' back above ' : ' above ') + num(lv, 0) + ', where the plan wants support');
-    }
-  }
   if (Math.abs(p.asset_ret) < 0.02) return L(n + ' strax ' + (p.asset_ret < 0 ? 'under' : 'över') + ' köpkursen', n + ' just ' + (p.asset_ret < 0 ? 'below' : 'above') + ' the purchase price');
   return L(n + ' ' + pctS(p.ret) + ' sedan köpet', n + ' ' + pctS(p.ret) + ' since purchase');
 }
@@ -317,36 +284,14 @@ function heldLine(p) {
     'Held as ' + short(p.held) + ' on ' + exchange(p) + ' in euros; levels and target apply to ' + p.chart + ' in dollars.');
   return L(exchange(p) + ', ' + ccyWord(p.ccy) + '. Köpt ' + dSY(p.entry_date) + '.', exchange(p) + ', ' + p.ccy + '. Bought ' + dSY(p.entry_date) + '.');
 }
-function targetPhrase(p) {
-  // "Ditt mål, cirka 990," när kortet anger ett spann eller ungefär
-  const approx = /\d\s*[-–]\s*\d|ungefär|cirka|\bca\b/i.test(p.target_text || '');
-  const t = (approx ? L('cirka ', 'about ') : '') + tal(p.target);
-  return LV('Ditt mål ', 'Målet ', 'Your target ', 'The target ') + t;
-}
 function dek(p) {
-  const d = ruleDist(p), o = p.oiret || {};
-  const where = p.chart !== p.held ? L(' på ' + p.chart + ', där nivåerna gäller,', ' on ' + p.chart + ', where the levels apply,') : '';
-  let s = L('Kursen ' + money(p.chart_px, p.chart_ccy) + where + ' ligger ' + pctU(Math.abs(d)) + (d >= 0 ? ' över ' : ' under ') + LV('din regelnivå ', 'regelnivån ', 'your rule level ', 'the rule level ') + px(p.rule.level) + '.',
-    'The price of ' + money(p.chart_px, p.chart_ccy) + where + ' is ' + pctU(Math.abs(d)) + (d >= 0 ? ' above ' : ' below ') + LV('', '', 'your rule level ', 'the rule level ') + px(p.rule.level) + '.');
-  if (ok(p.target)) {
-    const g = p.target / p.chart_px - 1;
-    s += ' ' + targetPhrase(p) + L(' ligger ' + pctU(Math.abs(g)) + (g >= 0 ? ' över' : ' under') + ' kursen', ' is ' + pctU(Math.abs(g)) + (g >= 0 ? ' above' : ' below') + ' the price');
-    s += hasOpt(p) ? L('; optionerna säger ' + px(o.target_12m) + ' om ett år (' + oiNote(o) + ').', '; the options say ' + px(o.target_12m) + ' in a year (' + oiNote(o) + ').') : L('.', '.');
-  } else {
-    s += ' ' + LV('Kortet har inget mål', 'Kortet har inget mål', 'The card has no target', 'The card has no target')
-      + (hasOpt(p) ? L('; optionerna säger ' + px(o.target_12m) + ' om ett år (' + oiNote(o) + ').', '; the options say ' + px(o.target_12m) + ' in a year (' + oiNote(o) + ').')
-        : L(', och datakällan har inga optioner för aktien.', ', and the data source has no options for the stock.'));
-  }
-  return s;
+  if (pub()) return dekPub(p);
 }
 
 /* Faktakollen: maskinens kontroll av varje påstående på kortet. Varje post: {v: dom, c: ok|bad|na, parts: [text | {q: citat}]} */
 function checks(p) {
   const out = [], o = p.oiret || {};
   const q = t => ({ q: t });
-  if (/bull/i.test(p.bias || '') && /bear/i.test(p.thesis || '') || /bear/i.test(p.bias || '') && /bull/i.test(p.thesis || '')) {
-    out.push({ v: L('! Avviker', '! Diverges'), c: 'bad', parts: [L('Bias ', 'Bias '), q(p.bias), L(' men kort tes ', ' but short thesis '), q(p.thesis), L('. Kortet säger två saker; orsaken är inte utredd.', '. The card says two things; the reason is not established.')] });
-  }
   const said = new Set();
   [['W', p.sma_W, p.sma_w], ['D', p.sma_D, p.sma_d]].forEach(([tf, text, sma]) => {
     if (!text || said.has(text)) return; said.add(text);
@@ -391,24 +336,16 @@ function checks(p) {
       'The daily channel from the anchor ' + (rd.channel.dir === 'upp' ? 'rises' : 'falls') + '; the price is ' + num(Math.abs(rd.channel.z), 2) + ' standard deviations ' + (rd.channel.z < 0 ? 'below' : 'above') + ' the midline ' + px(rd.channel.line) + '.'));
     if (rw && Math.abs(rw.channel.z) >= 1.5) bits.push(L('Veckokanalen: ' + num(Math.abs(rw.channel.z), 2) + ' standardavvikelser ' + (rw.channel.z < 0 ? 'under' : 'över') + ' mittlinjen, ' + (rw.channel.z < 0 ? 'vid nedre kanten.' : 'vid övre kanten.'),
       'Weekly channel: ' + num(Math.abs(rw.channel.z), 2) + ' standard deviations ' + (rw.channel.z < 0 ? 'below' : 'above') + ' the midline, ' + (rw.channel.z < 0 ? 'at the lower edge.' : 'at the upper edge.')));
-    bits.push(L('Husets test fann ingen köp- eller säljfördel i kanalläget.', "The house test found no buy or sell edge in the channel position."));
+    bits.push(L('Husets test fann inget stöd för att kanalläget förutsäger kommande avkastning.', 'The house test found no evidence that the channel position predicts future returns.'));
     out.push({ v: L('– Beskrivning', '– Description'), c: 'na', parts: [bits.join(' ')] });
   }
-  const l = ruleLvl(p), s = stateOf(p);
-  out.push({ v: s.sym + ' ' + stateWord(p), c: s.cls, parts: [
-    L('Regelnivån ' + px(p.rule.level) + ': kursen ' + pctU(Math.abs(ruleDist(p))) + (ruleDist(p) >= 0 ? ' över, ' : ' under, ') + num(l ? l.dist_atr : null, 1) + ' ATR, ' + p.rule.closes_beyond + ' av ' + p.rule.need + ' stängningar under. ',
-      'Rule level ' + px(p.rule.level) + ': the price is ' + pctU(Math.abs(ruleDist(p))) + (ruleDist(p) >= 0 ? ' above, ' : ' below, ') + num(l ? l.dist_atr : null, 1) + ' ATR, ' + p.rule.closes_beyond + ' of ' + p.rule.need + ' closes below. '),
-    LV('Maskinens tolkning av ditt kort: sälj vid ', 'Maskinens tolkning av kortet: sälj vid ', 'The machine reads your card as: sell on ', 'The machine reads the card as: sell on ') + ruleWords(p, true) + L(' (exitbekräftelse ', ' (exit confirmation '), q(p.exit_confirm), ').' + LV(' Bekräfta den.', '', ' Confirm it.', '')] });
-  if (hasOpt(p)) {
-    const tp = ok(p.target) ? [L('Mot ', 'Against '), q(p.target_text), L(' säger optionerna: förväntat pris om ett år ', ' the options say: expected price in a year ')] : [L('Optionerna: förväntat pris om ett år ', 'The options: expected price in a year ')];
-    let rest = px(o.target_12m) + ' (' + oiNote(o) + ').';
-    if (ok(p.target) && ok(o.p_above_own_target_12m)) rest += L(' Chans att vara över ' + tal(p.target) + ' om ett år: ' + pct0(o.p_above_own_target_12m) + '.', ' Chance of being above ' + tal(p.target) + ' in a year: ' + pct0(o.p_above_own_target_12m) + '.');
-    if (ok(p.target) && o.first_passage && ok(o.first_passage.p_target_first)) rest += L(' Chans att nå ' + tal(p.target) + ' före regelnivån inom ett år: ' + pct0(o.first_passage.p_target_first) + '.', ' Chance of reaching ' + tal(p.target) + ' before the rule level within a year: ' + pct0(o.first_passage.p_target_first) + '.');
-    out.push({ v: L('Uträknat', 'Calculated'), c: 'na', parts: tp.concat([rest]) });
-  } else {
+  if (hasOpt(p) && pub()) {
+    out.push({ v: L('Uträknat', 'Calculated'), c: 'na', parts: [L('Optionerna: förväntat pris om ett år ' + px(o.target_12m) + ', avrundat till målet ' + num(malTal(p), 0) + (malNot(p) ? ' (' + malNot(p) + ')' : '') + '.',
+      'The options: expected price in a year ' + px(o.target_12m) + ', rounded to the target ' + num(malTal(p), 0) + (malNot(p) ? ' (' + malNot(p) + ')' : '') + '.')] });
+  }
+  else {
     out.push({ v: L('– Går inte', '– Not possible'), c: 'na', parts: [L('Datakällan har inga optioner för ' + p.chart + ', så inget optionsmål kan räknas.', 'The data source has no options for ' + p.chart + ', so no option target can be calculated.')] });
   }
-  if (p.plan_worry) out.push({ v: L('– Går inte att pröva', '– Cannot be tested'), c: 'na', parts: [q(p.plan_worry), L(' Ett omdöme som maskinen inte har något mått för.', ' A judgment the machine has no measure for.')] });
   return out;
 }
 
@@ -417,7 +354,6 @@ const $ = id => document.getElementById(id);
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined && text !== null) e.textContent = text; return e; }
 function put(parent, nodes) { nodes.forEach(x => { if (x === null || x === undefined || x === '') return; parent.append(typeof x === 'string' ? document.createTextNode(x) : x); }); return parent; }
 function partsTo(parent, parts) { parts.forEach(x => { if (typeof x === 'string') parent.append(document.createTextNode(x)); else if (x && x.q !== undefined) parent.append(el('q', 'hans', x.q === null ? '—' : x.q)); }); return parent; }
-function stateNode(p) { const s = stateOf(p); const w = el('span', 'st ' + s.cls); w.append(el('span', 'sym', s.sym), document.createTextNode(stateWord(p))); return w; }
 
 /* ================= grafer ================= */
 const NS = 'http://www.w3.org/2000/svg';
@@ -623,10 +559,10 @@ function barsNote() {
 function spark(host, p) {
   const sk = skin(host); host.textContent = '';
   const W = Math.max(120, host.clientWidth || 200), H = 32;
-  const svg = sv('svg', { class: 'spark', viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': p.chart + L(', 120 dagar, regelnivå ', ', 120 days, rule level ') + px(p.rule.level) }, host);
-  const c = p.series.d_close.slice(-120), lo = Math.min(...c, p.rule.level), hi = Math.max(...c, p.rule.level);
+  const svg = sv('svg', { class: 'spark', viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': p.chart + L(', 120 dagar', ', 120 days') }, host);
+  let lv = [];
+  const c = p.series.d_close.slice(-120), lo = Math.min(...c, ...lv), hi = Math.max(...c, ...lv);
   const x = i => 1 + i * (W - 6) / (c.length - 1), y = v => 3 + (H - 6) * (1 - (v - lo) / (hi - lo || 1));
-  sv('line', { x1: 0, x2: W, y1: r1(y(p.rule.level)), y2: r1(y(p.rule.level)), stroke: sk.regel, 'stroke-width': 1, 'stroke-dasharray': '3 3' }, svg);
   sv('path', { d: pathD(c.map((v, i) => [x(i), y(v)])), fill: 'none', stroke: sk.ink, 'stroke-width': 1.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, svg);
   sv('circle', { cx: r1(x(c.length - 1)), cy: r1(y(c[c.length - 1])), r: 3, fill: sk.ink, stroke: sk.paper, 'stroke-width': 2 }, svg);
 }
@@ -648,8 +584,7 @@ function chartLegend(host, p) {
   add(candle(), L('Kurs, dag (ihålig upp, fylld ned)', 'Price, daily (hollow up, filled down)'));
   add(line(sk.sma52, 1.5), 'SMA 52'); add(line(sk.sma252, 1.5), 'SMA 252');
   if (regD(p)) add(box(sk.kanal), LV('Kanal från ditt ankare, ±2σ', 'Kanal från ankaret, ±2σ', 'Channel from your anchor, ±2σ', 'Channel from the anchor, ±2σ'));
-  add(line(sk.regel, 1.6), LV('Din regel', 'Regeln', 'Your rule', 'The rule'));
-  if (ok(p.target)) add(line(sk.mal, 1.6), LV('Ditt mål', 'Målet', 'Your target', 'The target'));
+  if (pub()) { if (watched(p).length) add(line(sk.regel, 1.2, '5 4'), L('Nivåer Bilel följer', 'Levels Bilel follows')); }
   if (hasOpt(p)) {
     add(box(sk.optUt, sk.optIn), L('Optionerna om 12 mån: hälften och 90 % av utfallen', 'Options in 12 months: half and 90% of outcomes'));
     const s = sv('svg', { width: 12, height: 12 }); sv('path', { d: 'M6 0.5 L11.5 6 L6 11.5 L0.5 6 Z', fill: sk.opt }, s); add(s, L('Förväntat pris', 'Expected price'));
@@ -669,7 +604,8 @@ function positionChart(host, p, opt) {
   const xf = t => m.l + histW + (t / T) * futW;
   const S0 = p.chart_px, sigD = p.vol60_ann / Math.sqrt(252);
   const noise = (z, t) => S0 * Math.exp(z * sigD * Math.sqrt(t * 252));
-  const rd = regD(p), rw = regW(p), other = otherLevel(p);
+  const rd = regD(p), rw = regW(p), other = pub() ? null : otherLevel(p);
+  const lvPub = pub() ? watched(p).filter(v => Math.abs(v / S0 - 1) < 0.35) : [];
   const allD = s.d_dates;
   // kanalens värde per handelsdag: rak linje från start_line vid start till line i dag
   const chanVal = (r, i) => { const a = allD.findIndex(d => d >= r.channel.start); if (a < 0) return null; const span = Math.max(1, total - 1 - a); return { a, v: r.channel.start_line + (r.channel.line - r.channel.start_line) * (i - a) / span }; };
@@ -680,19 +616,21 @@ function positionChart(host, p, opt) {
   // SMA bär skalan bara nära kursen; en SMA 252 långt under (en aktie som dubblats) ritas men klipps
   const hiBar = Math.max(...vals), loBar = Math.min(...vals);
   ['52', '252'].forEach(k => { for (let i = off; i < total; i++) { const v = s.d_sma[k][i]; if (ok(v) && v >= loBar * 0.88 && v <= hiBar * 1.12) vals.push(v); } });
-  vals.push(p.rule.level); if (ok(p.target)) vals.push(p.target); if (other && Math.abs(other.level / S0 - 1) < 0.35) vals.push(other.level);
+  if (pub()) vals.push(...lvPub);
   if (rd) { const a = Math.max(chanVal(rd, off).a, off); [a, total - 1].forEach(i => { const c = chanVal(rd, i).v; vals.push(c + 2 * rd.channel.sd, c - 2 * rd.channel.sd); }); }
   if (fan) vals.push(fan.q12.q25, fan.q12.q75, o.target_12m); else vals.push(noise(2, T), noise(-2, T));
   const lo = Math.min(...vals) * 0.965, hi = Math.max(...vals) * 1.035;
   const Y = v => m.t + (H - m.t - m.b) * (1 - (Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)));
-  const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': p.chart + ': ' + L('kurs ', 'price ') + px(S0) + ', ' + L('regelnivå ', 'rule level ') + px(p.rule.level) + (ok(p.target) ? ', ' + L('mål ', 'target ') + tal(p.target) : '') + (fan ? ', ' + L('optionernas förväntade pris om ett år ', "options' expected price in a year ") + px(o.target_12m) : '') }, host);
+  let aria = p.chart + ': ' + L('kurs ', 'price ') + px(S0) + (lvPub.length ? ', ' + L('nivåer Bilel följer ', 'levels Bilel follows ') + lvPub.map(px).join(', ') : '') + (fan ? ', ' + L('mål om ett år ', 'target in a year ') + num(malTal(p), 0) : '');
+  const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': aria }, host);
   const id = 'pc' + Math.random().toString(36).slice(2, 7), defs = sv('defs', {}, svg);
   const cp = sv('clipPath', { id: id + 'c' }, defs); sv('rect', { x: m.l, y: m.t, width: pw, height: H - m.t - m.b }, cp);
   const plot = sv('g', { 'clip-path': `url(#${id}c)` }, svg);
   sv('rect', { x: r1(m.l + histW), y: m.t, width: r1(futW), height: H - m.t - m.b, fill: sk.zon }, svg);
   // rutnät och axel till höger
   // axeltal som skulle hamna under en skylt (nivå, mål, förväntat, kurs) ritas inte
-  const plateYs = [p.rule.level, ok(p.target) ? p.target : null, fan ? o.target_12m : null, S0].filter(ok).map(Y);
+  let plateVals = [fan ? o.target_12m : null, S0];
+  const plateYs = plateVals.filter(ok).map(Y);
   const step = niceStep(hi - lo, small ? 4 : 6);
   for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
     const y = Y(v); if (y < m.t + 6 || y > H - m.b - 4) continue;
@@ -748,7 +686,7 @@ function positionChart(host, p, opt) {
     const y1 = Y(Math.max(O, C)), y2 = Y(Math.min(O, C));
     sv('rect', { x: r1(x - bw / 2), y: r1(y1), width: r1(bw), height: r1(Math.max(1, y2 - y1)), fill: up ? sk.paper : col, stroke: col, 'stroke-width': up ? 1 : 0 }, plot);
   }
-  // nivåerna: regeln och målet heldragna, den andra nivån streckad
+  // nivåerna
   const plates = [];
   const hline = (v, col, w, dash, label, plate) => {
     if (!ok(v)) return; const y = Y(v); if (y < m.t || y > H - m.b) return;
@@ -756,9 +694,7 @@ function positionChart(host, p, opt) {
     if (label) halo(stext(svg, sk, m.l + 6, y - 6, label, { fill: col, 'font-size': 11.5, 'font-weight': 600 }), sk);
     if (plate) plates.push({ y, text: tal(v), color: col });
   };
-  if (other && Math.abs(other.level / S0 - 1) < 0.35) hline(other.level, sk.regel, 1, '5 4', (other.tf === '4H' ? L('4H-varning ', '4H warning ') : L('dagsnivå ', 'daily level ')) + px(other.level), false);
-  hline(p.rule.level, sk.regel, 1.6, null, LV('din regel ', 'regeln ', 'your rule ', 'the rule ') + px(p.rule.level) + ': ' + ruleWords(p, false), true);
-  if (ok(p.target)) hline(p.target, sk.mal, 1.6, null, LV('ditt mål ', 'målet ', 'your target ', 'the target ') + tal(p.target), true);
+  if (pub()) lvPub.forEach(v => hline(v, sk.regel, 1, '5 4', L('nivå ', 'level ') + px(v), false));
   // ankaret
   if (rd) {
     const ai = allD.findIndex(d => d >= rd.channel.start);
@@ -791,8 +727,8 @@ function positionChart(host, p, opt) {
   if (fan) {
     const xe = xf(1), ye = Y(o.target_12m);
     sv('path', { d: `M${r1(xe)} ${r1(ye - 7)} l7 7 l-7 7 l-7 -7 z`, fill: sk.opt, stroke: sk.paper, 'stroke-width': 2 }, svg);
-    plates.push({ y: ye, text: px(o.target_12m), color: sk.opt });
-    const lab = L('förväntat ', 'expected ') + px(o.target_12m) + ', ' + pctS(o.er) + ' (' + oiNote(o, true) + ')';
+    plates.push({ y: ye, text: pub() ? num(malTal(p), 0) : px(o.target_12m), color: sk.opt });
+    const lab = pub() ? L('mål ', 'target ') + num(malTal(p), 0) + ', ' + pctS(o.er) + (malNot(p) ? ' (' + malNot(p) + ')' : '') : L('förväntat ', 'expected ') + px(o.target_12m) + ', ' + pctS(o.er) + ' (' + oiNote(o, true) + ')';
     halo(stext(svg, sk, xe - 12, ye - 10, lab, { 'text-anchor': 'end', 'font-size': 11, 'font-weight': 600, fill: sk.ink }), sk);
     const q = fan.q12;
     if (Y(q.q95) < m.t + 4) stext(svg, sk, xe - 4, m.t + 12, L('5 % chans över ', '5% chance above ') + pxq(q.q95) + ' ↑', { 'text-anchor': 'end', 'font-size': 10.5 });
@@ -847,26 +783,7 @@ function positionChart(host, p, opt) {
   return { svg, N, off };
 }
 function chartCaption(p) {
-  const o = p.oiret || {}, d = ruleDist(p), parts = [];
-  parts.push(L('Så läser du grafen. ', 'How to read the chart. '));
-  parts.push(L('Kursen ' + px(p.chart_px) + ' ligger ' + pctU(Math.abs(d)) + (d >= 0 ? ' över ' : ' under ') + 'regelnivån', 'The price of ' + px(p.chart_px) + ' is ' + pctU(Math.abs(d)) + (d >= 0 ? ' above ' : ' below ') + 'the rule level'));
-  if (ok(p.target)) { const g = p.target / p.chart_px - 1; parts.push(L(', och ' + LV('ditt mål ', 'målet ', '', '') + tal(p.target) + ' ligger ' + pctU(Math.abs(g)) + (g >= 0 ? ' över' : ' under') + ' kursen. ', ', and ' + LV('', '', 'your target ', 'the target ') + tal(p.target) + ' is ' + pctU(Math.abs(g)) + (g >= 0 ? ' above' : ' below') + ' the price. ')); }
-  else parts.push('. ');
-  if (hasOpt(p)) {
-    const q = o.quantiles_12m;
-    parts.push(L('Till höger om i dag visar solfjädern vad optionspriserna säger om nästa år: hälften av utfallen mellan ' + px(q.q25) + ' och ' + px(q.q75) + ', medianen ' + px(q.q50) + ' och det förväntade priset ' + px(o.target_12m) + '. Medianen ligger under det förväntade priset eftersom några få stora uppgångar drar upp snittet. ',
-      'Right of today, the fan shows what option prices say about the next year: half of outcomes between ' + px(q.q25) + ' and ' + px(q.q75) + ', the median ' + px(q.q50) + ' and the expected price ' + px(o.target_12m) + '. The median sits below the expected price because a few large gains pull the average up. '));
-    if (ok(p.target) && ok(o.p_above_own_target_12m)) parts.push(L('Chansen att vara över ' + tal(p.target) + ' om ett år är ' + pct0(o.p_above_own_target_12m) + (o.first_passage && ok(o.first_passage.p_target_first) ? ', och chansen att nå dit innan kursen når regelnivån ' + pct0(o.first_passage.p_target_first) : '') + '. ',
-      'The chance of being above ' + tal(p.target) + ' in a year is ' + pct0(o.p_above_own_target_12m) + (o.first_passage && ok(o.first_passage.p_target_first) ? ', and the chance of getting there before the price reaches the rule level ' + pct0(o.first_passage.p_target_first) : '') + '. '));
-    parts.push(L('Optionsmålet är ' + oiNote(o) + '.', 'The option target is ' + oiNote(o) + '.'));
-  } else {
-    parts.push(L('Till höger om i dag visar bandet hur långt vanlig svängning brukar nå på 21 handelsdagar, ±1 och ±2 standardavvikelser med 60 dagars volatilitet. Det är ingen prognos; datakällan har inga optioner för aktien.',
-      'Right of today, the band shows how far ordinary swings usually reach in 21 trading days, ±1 and ±2 standard deviations at 60-day volatility. It is not a forecast; the data source has no options for the stock.'));
-  }
-  const ei = p.series.d_dates.indexOf(p.entry_date), N = Math.min(180, p.series.d_dates.length);
-  if (ei >= 0 && ei < p.series.d_dates.length - N) parts.push(L(' Köpet ' + dSY(p.entry_date) + ' ligger före grafens början.', ' The purchase on ' + dSY(p.entry_date) + ' is before the start of the chart.'));
-  if (p.chart !== p.held) parts.push(L(' Grafen visar ' + p.chart + ' i dollar, där nivåerna gäller; innehavet är ' + short(p.held) + ' i euro.', ' The chart shows ' + p.chart + ' in dollars, where the levels apply; the holding is ' + short(p.held) + ' in euros.'));
-  return parts.join('');
+  if (pub()) return chartCaptionPub(p);
 }
 
 /* ================= sidornas delar ================= */
@@ -897,46 +814,39 @@ function ears(left, right, ed) {
 function strip(host) {
   host.textContent = '';
   const cell = (lab, val, sub, cls) => { const c = el('div', 'cell'); c.append(el('span', 'lab', lab)); const v = el('span', 'val', val); if (cls) v.classList.add(cls); c.append(v); if (sub) c.append(el('span', 'sub', sub)); host.append(c); };
-  const bad = POS.filter(p => p.rule.state !== 'INTAKT'), nr = near(), R = P.risk || {};
-  const rulesCell = () => cell(L('Exitregler', 'Exit rules'), bad.length ? L(bad.length + ' av ' + POS.length + ' larmar', bad.length + ' of ' + POS.length + ' flagging') : L(POS.length + ' av ' + POS.length + ' intakta', POS.length + ' of ' + POS.length + ' intact'),
-    L('närmast: ' + nm(nr) + ', ' + pctU(Math.abs(ruleDist(nr))) + ' över', 'closest: ' + nm(nr) + ', ' + pctU(Math.abs(ruleDist(nr))) + ' above'));
+  const R = P.risk || {};
   if (pub()) {
     cell(L('Avkastning', 'Return'), pctS(P.ret), L('på vad köpen kostade', 'on what the purchases cost'));
     cell(cap(wd(ASOF)), pctS(P.day_ret), L('på dagen', 'on the day'), P.day_ret >= 0 ? 'pos' : 'neg');
     cell(L('Mot MSCI World', 'vs MSCI World'), ppS(P.ret - P.msci_ret), L('index gav ' + pctS(P.msci_ret) + ' på samma insats', 'the index made ' + pctS(P.msci_ret) + ' on the same money'));
-    rulesCell();
+    const ev = events()[0];
+    cell(L('Nästa rapport', 'Next report'), ev ? dS(ev.d) : '—', ev ? evName(ev) + (ev.inner ? L(' (i ' + nm(ev.p) + ')', ' (in the ' + nm(ev.p) + ')') : '') : '');
     const big = BYW[0]; cell(L('Största vikt', 'Largest weight'), nm(big) + ' ' + pctU(big.weight, 0), L(POS.length + ' innehav', POS.length + ' holdings'));
     cell(L('Risk', 'Risk'), pctU(R.vol_ann, 0), L('volatilitet per år, beta ' + num(R.beta_msci, 2) + ' mot MSCI World', 'volatility per year, beta ' + num(R.beta_msci, 2) + ' to MSCI World'));
     return;
   }
-  cell(L('Värde', 'Value'), kr(P.value_sek), L(POS.length === 5 ? 'fem innehav' : POS.length + ' innehav', POS.length + ' holdings'));
-  cell(L('Sedan köpen', 'Since purchase'), krS(P.pnl_sek), L(pctS(P.ret) + ' på ' + kr(P.cost_sek), pctS(P.ret) + ' on ' + kr(P.cost_sek)), P.pnl_sek >= 0 ? null : 'neg');
-  cell(cap(wd(ASOF)), krS(P.day_sek), L(pctS(P.day_ret) + ' på dagen', pctS(P.day_ret) + ' on the day'));
-  cell(L('Mot MSCI World', 'vs MSCI World'), krS(P.excess_sek), L(ppS(P.ret - P.msci_ret) + '; index gav ' + pctS(P.msci_ret), ppS(P.ret - P.msci_ret) + '; the index made ' + pctS(P.msci_ret)));
-  rulesCell();
-  cell(L('Insatt', 'Invested'), kr(P.cost_sek), L('ditt kort: ' + kr(P.invested_reported_sek), 'your cards: ' + kr(P.invested_reported_sek)));
 }
 function teaser(p) {
   const a = el('article', 'story');
   a.append(el('p', 'kicker', p.name));
   a.append(el('p', 'held', heldLine(p)));
   const h = el('h3'); const link = el('a', null, storyHeadline(p)); link.href = href('position.html', p.id); h.append(link); a.append(h);
-  if (p.thesis) { const qn = el('p', 'quote', '”' + p.thesis + '”'); qn.title = p.thesis; a.append(qn); }
+  if (pub()) { const st = senasteText(p); if (st) a.append(el('p', 'senaste', st)); }
   const sp = el('div', 'sparkholder'); sp.dataset.id = p.id; a.append(sp);
-  const foot = el('div', 'storyfoot'); foot.append(stateNode(p), el('span', null, pctU(Math.abs(ruleDist(p))) + (ruleDist(p) >= 0 ? L(' över regeln', ' above the rule') : L(' under regeln', ' below the rule')))); a.append(foot);
+  const foot = el('div', 'storyfoot');
+  if (pub()) foot.append(el('span', null, L('Mot MSCI World ', 'vs MSCI World ') + ppS(p.ret - p.msci_ret)), el('span', null, L('Mål ', 'Target ') + (malTal(p) === null ? '—' : num(malTal(p), 0))));
+  a.append(foot);
   const f = el('dl', 'facts'), o = p.oiret || {};
   const add = (dt, nodes) => { f.append(el('dt', null, dt)); const dd = el('dd'); put(dd, nodes); f.append(dd); };
   add(L('Vikt', 'Weight'), [pctU(p.weight, 0) + (pub() ? '' : ', ' + kr(p.value_sek))]);
   add(L('Resultat', 'Result'), [el('span', p.ret >= 0 ? 'pos' : 'neg', pctS(p.ret)), el('span', 'sub2', L(' kurs ', ' price ') + pctS(p.asset_ret) + L(', valuta ', ', currency ') + pctS(p.fx_ret) + divTxt(p, ', '))]);
-  add(L('Regel', 'Rule'), [stateNode(p), ' ' + pctU(Math.abs(ruleDist(p))) + L(' över, ', ' above, ') + num(ruleAtr(p), 1) + ' ATR', el('br'), el('span', 'sub2', levelText(p) + ', ' + ruleWords(p, false))]);
-  add(L('Brus', 'Noise'), [pct0(noise5(p)) + L(' chans att nå nivån inom 5 dagar', ' chance of reaching the level within 5 days')]);
-  const t = [LV('Ditt ', 'Kortets ', 'Yours ', "Card's "), el('i', null, p.target_text ? '”' + p.target_text + '”' : '—'), el('br')];
-  if (!hasOpt(p)) t.push(el('span', 'sub2', L('Optionerna: inga hos datakällan', 'Options: none at the data source')));
-  else { t.push(L('Optionerna ', 'Options ') + px(o.target_12m) + L(' om ett år', ' in a year'), el('br'), el('span', 'sub2', oiNote(o))); }
-  add(L('Mål', 'Target'), t);
-  add(L('Rapport', 'Report'), [calText(p)]);
-  a.append(f);
-  return a;
+  if (pub()) {
+    add(L('Nivåer', 'Levels'), [levelsText(p)]);
+    add(L('Mål', 'Target'), [malText(p)].concat(malNot(p) ? [el('br'), el('span', 'sub2', malNot(p))] : []));
+    add(L('Rapport', 'Report'), [calText(p)]);
+    a.append(f);
+    return a;
+  }
 }
 function calText(p) {
   const c = (p.calendar || []).filter(e => e.date).slice().sort((a, b) => a.date.localeCompare(b.date));
@@ -959,36 +869,33 @@ function markets(host) {
   });
   host.append(tb);
 }
-function borslistan(host, subHost) {
+function borslistanPub(host, subHost) {
   host.textContent = '';
-  subHost.textContent = L('Ordnad efter vikt' + (pub() ? '' : ', belopp i kronor') + '. Regelnivåerna är maskinens tolkning av korten. Optionerna: prel. = preliminär metod; kort löptid = bara ca 6 mån optioner, uppräknat; ETF = utanför studiens evidens.',
-    'Ordered by weight' + (pub() ? '' : ', amounts in SEK') + '. The rule levels are the machine\'s reading of the cards. Options: prelim. = preliminary method; short expiry = only about 6 months of options, annualised; ETF = outside the study\'s evidence.');
-  const cols = [[L('Innehav', 'Holding'), 'l'], [L('Vikt', 'Weight')]].concat(pub() ? [] : [[L('Värde', 'Value')]]).concat([[L('Sedan köp', 'Since purchase')], [L('Regel', 'Rule'), 'l'], [L('Avstånd', 'Distance')], [L('Regelnivå', 'Rule level'), 'l'], [L('Brus 5 dagar', 'Noise 5 days')], [LV('Ditt mål', 'Mål', 'Your target', 'Target'), 'l'], [L('Optionerna, 12 mån', 'Options, 12 mo')], [LV('Över ditt mål', 'Över målet', 'Above your target', 'Above target')], [L('Rapport', 'Report')]]);
+  subHost.textContent = L('Ordnad efter vikt. Målet är optionernas förväntade pris om tolv månader enligt studien från 2026, avrundat; se Om portföljen.',
+    "Ordered by weight. The target is the options' expected price in twelve months per the 2026 study, rounded; see About the portfolio.");
+  const cols = [[L('Innehav', 'Holding'), 'l'], [L('Vikt', 'Weight')], [L('Sedan köp', 'Since purchase')], [L('Mot MSCI World', 'vs MSCI World')], [L('Mål om ett år', 'Target in a year')], [L('Nivåer Bilel följer', 'Levels Bilel follows'), 'l'], [L('Rapport', 'Report')]];
   const thead = el('thead'), hr = el('tr'); cols.forEach(([h, c]) => { const th = el('th', c || null, h); th.scope = 'col'; hr.append(th); }); thead.append(hr); host.append(thead);
   const body = el('tbody');
   BYW.forEach(p => {
-    const tr = el('tr'), l = ruleLvl(p), o = p.oiret || {};
+    const tr = el('tr');
     const td = (nodes, cls) => { const c = el('td', cls || null); put(c, nodes); tr.append(c); };
     const a = el('a', null, nm(p)); a.href = href('position.html', p.id);
     const nmSpan = el('span', 'nm'); nmSpan.append(a);
     td([nmSpan, el('span', 's', p.chart !== p.held ? short(p.held) + L(' i ', ' in ') + p.ccy + L(', graf ', ', chart ') + p.chart : short(p.held) + ' ' + px(p.px) + ' ' + p.ccy)]);
     td([pctU(p.weight, 0)]);
-    if (!pub()) td([kr(p.value_sek)]);
     td([el('span', p.ret >= 0 ? 'pos' : 'neg', pctS(p.ret)), el('span', 's', L('kurs ', 'price ') + sgn(p.asset_ret * 100, 1) + L(', valuta ', ', currency ') + sgn(p.fx_ret * 100, 1) + (ok(p.div_ret) && p.div_ret > 0 ? L(', utd. ', ', div. ') + sgn(p.div_ret * 100, 1) : ''))]);
-    td([stateNode(p), el('span', 's', p.rule.closes_beyond + L(' av ', ' of ') + p.rule.need + L(' stängningar', ' closes'))], 'l');
-    td([pctU(l ? l.dist : ruleDist(p)), el('span', 's', num(l ? l.dist_atr : null, 1) + ' ATR')]);
-    td([levelText(p), el('span', 's', ruleWords(p, false))], 'l');
-    td([pct0(noise5(p))]);
-    td([el('i', null, p.target_text ? '”' + p.target_text + '”' : '—')], 'l wrap');
-    if (!hasOpt(p)) td(['—', el('span', 's', L('inga optioner', 'no options'))]);
-    else { const tag = [L('prel.', 'prelim.')]; if (o.approx) tag.push(L('kort löptid', 'short expiry')); if (outside(o)) tag.push('ETF'); td([px(o.target_12m), el('span', 's', tag.join(', '))]); }
-    td([!hasOpt(p) || !ok(o.p_above_own_target_12m) ? '—' : pct0(o.p_above_own_target_12m)]);
+    td([ppS(p.ret - p.msci_ret), el('span', 's', 'MSCI ' + pctS(p.msci_ret))]);
+    td(malTal(p) === null ? ['—', el('span', 's', L('inga optioner', 'no options'))] : [num(malTal(p), 0), el('span', 's', malNot(p) || ccyWord(p.chart_ccy))]);
+    td([watched(p).map(px).join(', ') || '—', el('span', 's', ccyWord(p.chart_ccy) + (p.chart !== p.held ? ', ' + p.chart : ''))], 'l');
     const cal = (p.calendar || []).filter(e => e.date).slice().sort((x, y) => x.date.localeCompare(y.date));
     const inner = cal.filter(e => e.ticker !== p.chart && e.ticker !== p.held);
     td(cal.length ? [dS(cal[0].date)].concat(inner.length ? [el('span', 's', inner.map((e, i) => (CAL[e.ticker] || e.ticker) + (i ? ' ' + dS(e.date) : '')).join(', '))] : []) : ['—']);
     body.append(tr);
   });
   host.append(body);
+}
+function borslistan(host, subHost) {
+  if (pub()) return borslistanPub(host, subHost);
 }
 /* tabellen bakom kurvan: sista handelsdagen i varje månad, i kronor eller (publikt) i procentenheter */
 function excessTable(tb, sumEl) {
@@ -1009,8 +916,8 @@ function excessTable(tb, sumEl) {
 }
 function footer(host) {
   host.textContent = '';
-  const left = el('span'); left.textContent = L('Datans ålder: stängning ' + wd(ASOF) + ' ' + dSY(ASOF) + ', byggd ' + wd(BUILT) + ' ' + dS(BUILT) + ' ' + hhmm(BUILT) + '. Prototypdata ur Yahoo Finance och FRED.', 'Data age: close ' + wd(ASOF) + ' ' + dSY(ASOF) + ', built ' + wd(BUILT) + ' ' + dS(BUILT) + ' ' + hhmm(BUILT) + '. Prototype data from Yahoo Finance and FRED.');
-  const right = el('span'); const a = el('a', null, L('Så räknas talen: metoden', 'How the numbers are made: the method')); a.href = href('metod.html'); right.append(a);
+  const left = el('span'); left.textContent = L('Datans ålder: stängning ' + wd(ASOF) + ' ' + dSY(ASOF) + ', byggd ' + wd(BUILT) + ' ' + dS(BUILT) + ' ' + hhmm(BUILT) + '. Prototypdata ur Yahoo Finance, MSCI, Eurex, Cboe och FRED.', 'Data age: close ' + wd(ASOF) + ' ' + dSY(ASOF) + ', built ' + wd(BUILT) + ' ' + dS(BUILT) + ' ' + hhmm(BUILT) + '. Prototype data from Yahoo Finance, MSCI, Eurex, Cboe and FRED.');
+  const right = el('span'); const a = el('a', null, pub() ? L('Om portföljen: syftet och metoden', 'About the portfolio: the aim and the method') : L('Så räknas talen: metoden', 'How the numbers are made: the method')); a.href = href('metod.html'); right.append(a);
   host.append(left, right);
 }
 
@@ -1020,13 +927,37 @@ function whenFonts(fn) { if (fontsReady) { fn(); return; } const go = () => { fo
 function onResize(fn) { let t; root.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(fn, 150); }); }
 function setRedraw(fn) { redraw = fn; if (!resizeHooked) { resizeHooked = true; onResize(() => redraw && redraw()); } }
 
+/* notisen: syftet, en gång per webbläsare (publikt, Bobbos "en notis som folk får en gång"). Den räknas som sedd när
+   den visas; under samma sidvisning står den kvar vid omritning (språk, upplaga) tills Okej. Utan lagring visas den
+   varje gång. */
+let notisLage = null;  // null: inte avgjort; 'visas': visas under den här sidvisningen; 'stangd': stängd eller redan sedd
+function notis() {
+  const old = document.querySelector('.notis'); if (old) old.remove();
+  if (!pub()) return;
+  if (notisLage === null) { notisLage = pref.get('notis') === 'sedd' ? 'stangd' : 'visas'; pref.set('notis', 'sedd'); }
+  if (notisLage !== 'visas') return;
+  const box = el('section', 'notis'); box.setAttribute('aria-labelledby', 'notis-h');
+  const h = el('h2', null, L('Här försöker vi slå världsindex', "We're trying to beat the world index")); h.id = 'notis-h';
+  const lead = Math.abs(P.ret - P.msci_ret) * 100;
+  box.append(h, el('p', null, L('Varje köp jämförs med samma insats, samma dag, i MSCI World, indexet som fonden iShares Core MSCI World följer. Just nu ligger portföljen ' + num(lead, 1) + ' procentenheter ' + leadWord() + ' indexet.',
+    'Every purchase is compared with the same money, on the same day, in MSCI World, the index tracked by the iShares Core MSCI World fund. Right now the portfolio is ' + num(lead, 1) + ' percentage points ' + leadWord() + ' the index.')));
+  const row = el('p', 'notis-rad');
+  const b = el('button', null, L('Okej', 'Got it')); b.type = 'button';
+  b.addEventListener('click', () => { notisLage = 'stangd'; box.remove(); });
+  const a = el('a', null, L('Läs mer om portföljen', 'Read more about the portfolio')); a.href = href('metod.html');
+  row.append(b, a); box.append(row);
+  const anchor = document.querySelector('.rules'); if (anchor) anchor.after(box); else document.querySelector('.sheet').prepend(box);
+}
+
 function forsta() {
   applyRoot();
   const ed = state.upplaga;
   document.title = L('Portföljen · ', 'Portföljen · ') + (ed === 'kvall' ? L('Kvällsupplagan', 'Evening edition') : L('Morgonupplagan', 'Morning edition'));
-  $('tag').textContent = L('En tidning om fem positioner, skriven av maskinen två gånger om dagen.', 'A newspaper about five positions, written by the machine twice a day.');
+  $('tag').textContent = pub() ? L('Försöket att slå världsindex: varje köp jämförs med samma insats i MSCI World samma dag.', 'Trying to beat the world index: every purchase is compared with the same money in MSCI World on the same day.')
+    : L('En tidning om fem positioner, skriven av maskinen två gånger om dagen.', 'A newspaper about five positions, written by the machine twice a day.');
   controls($('ctrls'), ch => { setState(ch, true); forsta(); });
   ears($('ear-left'), $('ear-right'), ed);
+  notis();
   strip($('strip'));
   $('headline').textContent = headline(ed);
   $('lede').textContent = lede(ed);
@@ -1057,6 +988,36 @@ function drawFront() {
   document.querySelectorAll('.sparkholder').forEach(h => spark(h, pos(h.dataset.id)));
 }
 
+/* positionssidan, publikt: senaste händelsen och målet i rutorna under faktakollen */
+function senasteRuta(pl, p) {
+  const b = senaste(p);
+  if (!b) { pl.append(el('p', 'empty', L('— inget skrivet ännu', '— nothing written yet'))); return; }
+  const d = el('div'); d.append(el('b', null, dSY(b.datum)), el('p', 'plain', senasteText(p)));
+  const k = el('p', 'kallor'); k.append(document.createTextNode(L('Källor: ', 'Sources: ')));
+  (b.kallor || []).forEach((s, i) => { const a = el('a', null, L(s.sv, s.en)); a.href = s.url; a.rel = 'noopener noreferrer'; if (i) k.append(document.createTextNode('; ')); k.append(a); });
+  k.append(document.createTextNode(L('. Reaktionen är egen beräkning ur stängningskurser.', '. The reaction is our own calculation from closing prices.')));
+  d.append(k); pl.append(d);
+}
+function optPub(ob, marks, p, o) {
+  marks.append(el('span', 'mark', o.metod === 'yta' ? L('volatilitetsytan', 'volatility surface') : L('lösenpriser med bud', 'strikes with bids')));
+  if (o.kalla === 'Eurex') marks.append(el('span', 'mark', L('Eurex avräkningspriser', 'Eurex settlement prices')));
+  if (o.kalla === 'EWY') marks.append(el('span', 'mark', L('optionerna på EWY', 'the options on EWY')));
+  if (o.approx) marks.append(el('span', 'mark warn', L('bara ca ' + approxMonths(o) + ' mån optioner', 'only about ' + approxMonths(o) + ' months of options')));
+  if (outside(o)) marks.append(el('span', 'mark warn', isEtf(o) ? L('ETF utanför studiens bevis', "ETF outside the study's evidence") : L('utanför studiens bevis', "outside the study's evidence")));
+  ob.append(marks);
+  if (o.kalla === 'Eurex') ob.append(el('p', null, L('Optionerna handlas på Eurex i Frankfurt, inte hos datakällan. Målet räknas ur Eurex dagliga avräkningspriser med samma metod som för de amerikanska aktierna, och med euroräntan ' + pctU(o.rf, 2) + ' som priserna själva ger. Studien prövade bara aktier i S&P 500.',
+    'The options trade on Eurex in Frankfurt, not at the data source. The target is calculated from Eurex daily settlement prices with the same method as the US stocks, using the euro rate of ' + pctU(o.rf, 2) + ' that the prices themselves imply. The study only tested S&P 500 stocks.')));
+  if (o.kalla === 'EWY') ob.append(el('p', null, L('Fondens egna optioner har för få bud för metoden. Målet räknas därför ur optionerna på EWY, en annan fond med samma koreanska storbolag: de två har rört sig nästan exakt lika det senaste året (korrelation 0,997). Studien prövade bara aktier i S&P 500, inte fonder.',
+    "The fund's own options have too few bids for the method. The target is therefore calculated from the options on EWY, another fund holding the same large Korean companies: the two have moved almost exactly alike over the past year (correlation 0.997). The study only tested S&P 500 stocks, not funds.")));
+  ob.append(el('p', null, L('Målet är ' + malBelopp(p) + ': optionernas förväntade pris om ett år, ' + px(o.target_12m) + ', avrundat. Det är ' + pctS(o.er) + ' från dagens kurs. Medianen är ' + px(o.median_12m) + '.',
+    'The target is ' + malBelopp(p) + ": the options' expected price in a year, " + px(o.target_12m) + ', rounded. That is ' + pctS(o.er) + " from today's price. The median is " + px(o.median_12m) + '.')));
+  const tb = el('table', 't'); const h = el('tr'); [L('Utfall om ett år', 'Outcome in a year'), '5 %', '25 %', '50 %', '75 %', '95 %'].forEach(x => h.append(el('th', null, x))); tb.append(h);
+  const r = el('tr'); r.append(el('td', null, L('Kurs', 'Price'))); ['q5', 'q25', 'q50', 'q75', 'q95'].forEach(k => r.append(el('td', null, px(o.quantiles_12m[k])))); tb.append(r); ob.append(tb);
+  const src = el('p', 'muted'); src.append(document.createTextNode(L('Metod: Martin, Rodenkirchen, Wagner och Wang (2026); ', 'Method: Martin, Rodenkirchen, Wagner and Wang (2026); ')));
+  const la = el('a', null, L('författarnas sida', "the authors' page")); la.href = 'https://personal.lse.ac.uk/martiniw/oiret.html'; la.rel = 'noopener noreferrer';
+  src.append(la, document.createTextNode(L('. Nästa rapport: ', '. Next report: ') + calText(p) + '.')); ob.append(src);
+}
+
 function positionssida() {
   applyRoot();
   const ed = state.upplaga;
@@ -1070,7 +1031,7 @@ function positionssida() {
   const nav = $('posnav'); nav.textContent = '';
   BYW.forEach(q => {
     const a = el('a'); a.href = href('position.html', q.id); if (q.id === p.id) a.setAttribute('aria-current', 'page');
-    a.append(el('b', null, nm(q)), document.createTextNode(stateOf(q).sym + ' ' + stateWord(q) + ', ' + pctS(q.ret)));
+    a.append(el('b', null, nm(q)), document.createTextNode(pub() ? pctS(q.ret) + L(' sedan köp', ' since purchase') : stateOf(q).sym + ' ' + stateWord(q) + ', ' + pctS(q.ret)));
     a.addEventListener('click', e => { e.preventDefault(); root.history.replaceState(null, '', a.getAttribute('href')); positionssida(); root.scrollTo({ top: 0 }); });
     nav.append(a);
   });
@@ -1085,8 +1046,10 @@ function positionssida() {
   fig(L('Sedan köp', 'Since purchase'), pctS(p.ret), (pub() ? L('kurs ', 'price ') + pctS(p.asset_ret) + L(', valuta ', ', currency ') + pctS(p.fx_ret) : krS(p.pnl_sek) + L('; kurs ', '; price ') + pctS(p.asset_ret) + L(', valuta ', ', currency ') + pctS(p.fx_ret)) + divTxt(p, ', '), p.ret >= 0 ? 'pos' : 'neg');
   fig(L('Vikt', 'Weight'), pctU(p.weight, 1), L('andel av risken ', 'share of risk ') + pctU(((P.risk || {}).contrib || {})[p.id], 0));
   fig(L('Mot MSCI World', 'vs MSCI World'), pub() ? ppS(p.ret - p.msci_ret) : krS(p.excess_sek), L('MSCI World samma dag ', 'MSCI World from the same day ') + pctS(p.msci_ret));
-  fig(L('Regeln', 'The rule'), stateOf(p).sym + ' ' + stateWord(p), pctU(Math.abs(ruleDist(p))) + (ruleDist(p) >= 0 ? L(' över ', ' above ') : L(' under ', ' below ')) + px(p.rule.level) + ', ' + num(ruleAtr(p), 1) + ' ATR');
-  fig(L('Brus', 'Noise'), pct0(noise5(p)), L('chans att nå nivån inom 5 dagar; ', 'chance of reaching the level within 5 days; ') + pct0(noise21(p)) + L(' inom 21', ' within 21'));
+  if (pub()) {
+    fig(L('Mål om ett år', 'Target in a year'), malBelopp(p), malTal(p) === null ? L('inga optioner hos datakällan', 'no options at the data source') : (malNot(p) || L('optionerna, studien från 2026', 'the options, the 2026 study')));
+    fig(L('Nästa rapport', 'Next report'), calText(p), L('ur kalendern', 'from the calendar'));
+  }
   chartLegend($('legend'), p);
   $('caption').textContent = chartCaption(p);
   // hans ord
@@ -1095,49 +1058,35 @@ function positionssida() {
   const qv = v => (v ? '”' + v + '”' : null);
   const add = (k, v, plain) => { yd.append(el('dt', null, k)); const dd = el('dd'); if (v === null || v === undefined || v === '') dd.append(el('span', 'empty', L('— ej ifyllt', '— not filled in'))); else if (plain) dd.append(el('span', 'plain', v)); else dd.textContent = v; yd.append(dd); };
   const rw = regW(p), rdd = regD(p);
-  add('Bias', p.bias, true);
-  add(L('Kort tes', 'Short thesis'), qv(p.thesis));
-  add(L('Ankare vecka', 'Weekly anchor'), rw ? qv(px(rw.anchor) + ' ' + rw.label) : null);
-  add(L('Ankare dag', 'Daily anchor'), rdd ? qv(px(rdd.anchor) + ' ' + rdd.label) : null);
-  add(L('Regression', 'Regression'), qv(p.reg_comment));
-  add(L('SMA vecka', 'SMA weekly'), qv(p.sma_W));
-  add(L('SMA dag', 'SMA daily'), qv(p.sma_D));
-  add(L('Nivåer', 'Levels'), (ok(p.warn_4h) ? '4H ' + px(p.warn_4h) : '') + (ok(p.main_d) ? L(', daglig ', ', daily ') + px(p.main_d) : '') + L(', exit ', ', exit ') + (p.exit_confirm || '—'), true);
-  if (p.level_comment) add(L('Om nivåerna', 'On the levels'), qv(p.level_comment));
-  add(L('Mål', 'Target'), qv(p.target_text));
-  if (p.note) add(L('Anteckning', 'Note'), qv(p.note));
-  add(L('Uppdaterad', 'Updated'), p.updated ? dSY(p.updated) + (p.updated.length > 10 ? ' ' + p.updated.slice(11, 16) : '') : null, true);
+  if (pub()) {
+    $('yours-h').textContent = L('Det Bilel tittar på', 'What Bilel is watching');
+    add(L('Nivåer', 'Levels'), levelsText(p), true);
+    if (p.sma_W) add(L('SMA vecka', 'SMA weekly'), qv(p.sma_W));
+    if (p.sma_D) add(L('SMA dag', 'SMA daily'), qv(p.sma_D));
+    if (p.sma_comment) add(L('Om medelvärdena', 'On the averages'), qv(p.sma_comment));
+    if (rw) add(L('Ankare vecka', 'Weekly anchor'), px(rw.anchor) + ', ' + dSY(rw.anchor_date), true);
+    if (rdd && (!rw || Math.abs(rdd.anchor - rw.anchor) > 1e-9)) add(L('Ankare dag', 'Daily anchor'), px(rdd.anchor) + ', ' + dSY(rdd.anchor_date), true);
+  }
   $('check-h').textContent = L('Faktakollen: maskinen prövade orden mot kurserna', 'The fact check: the machine tested the words against the prices');
   const ol = $('check'); ol.textContent = '';
   checks(p).forEach(c => { const li = el('li'); li.append(el('span', 'verdict ' + c.c, c.v)); const t = el('span'); partsTo(t, c.parts); li.append(t); ol.append(li); });
-  // planen
-  $('plan-h').textContent = L('Planen', 'The plan');
+  // rutan under faktakollen
+  $('plan-h').textContent = L('Senaste', 'Latest');
   const pl = $('plan-body'); pl.textContent = '';
-  [[L('Håller så länge', 'Holds as long as'), p.plan_hold], [L('Orolig om', 'Worried if'), p.plan_worry], [L('Säljer om', 'Sells if'), p.plan_sell]].forEach(([k, v]) => { const d = el('div'); d.append(el('b', null, k), el('p', v ? null : 'empty', v ? '”' + v + '”' : L('— ej ifyllt', '— not filled in'))); pl.append(d); });
+  if (pub()) senasteRuta(pl, p);
   // optionerna
-  $('opt-h').textContent = L('Optionerna om ett år', 'The options in a year');
+  $('opt-h').textContent = pub() ? L('Målet om ett år', 'The target in a year') : L('Optionerna om ett år', 'The options in a year');
   const ob = $('opt-body'); ob.textContent = '';
   const o = p.oiret || {};
   const marks = el('div', 'marks');
-  if (!hasOpt(p)) { marks.append(el('span', 'mark warn', L('inga optioner', 'no options'))); ob.append(marks, el('p', null, L('Datakällan har inga optioner för ' + p.chart + '. Eurex-optioner finns men är inte fritt tillgängliga, så maskinen visar vanlig svängning i stället för en riktkurs.', 'The data source has no options for ' + p.chart + '. Eurex options exist but are not freely available, so the machine shows ordinary swings instead of a target.'))); }
-  else {
-    marks.append(el('span', 'mark', L('preliminär', 'preliminary')));
-    if (o.approx) marks.append(el('span', 'mark warn', L('bara ca ' + approxMonths(o) + ' mån optioner, uppräknat', 'only about ' + approxMonths(o) + ' months of options, annualised')));
-    if (outside(o)) marks.append(el('span', 'mark warn', L('ETF utanför studiens evidens', "ETF outside the study's evidence")));
-    ob.append(marks);
-    ob.append(el('p', null, L('Förväntat pris om ett år ' + px(o.target_12m) + ', en förväntad avkastning på ' + pctS(o.er) + ' från dagens kurs. Medianen är ' + px(o.median_12m) + '.', 'Expected price in a year ' + px(o.target_12m) + ', an expected return of ' + pctS(o.er) + ' from today\'s price. The median is ' + px(o.median_12m) + '.')));
-    const tb = el('table', 't'); const h = el('tr'); [L('Utfall om ett år', 'Outcome in a year'), '5 %', '25 %', '50 %', '75 %', '95 %'].forEach(x => h.append(el('th', null, x))); tb.append(h);
-    const r = el('tr'); r.append(el('td', null, L('Kurs', 'Price'))); ['q5', 'q25', 'q50', 'q75', 'q95'].forEach(k => r.append(el('td', null, px(o.quantiles_12m[k])))); tb.append(r); ob.append(tb);
-    if (ok(p.target)) ob.append(el('p', null, L('Chans att vara över ' + tal(p.target) + ' om ett år: ' + pct0(o.p_above_own_target_12m) + '. Chans att nå ' + tal(p.target) + ' före regelnivån ' + px(p.rule.level) + ' inom ett år: ' + pct0((o.first_passage || {}).p_target_first) + '; regelnivån först: ' + pct0((o.first_passage || {}).p_stop_first) + '.',
-      'Chance of being above ' + tal(p.target) + ' in a year: ' + pct0(o.p_above_own_target_12m) + '. Chance of reaching ' + tal(p.target) + ' before the rule level ' + px(p.rule.level) + ' within a year: ' + pct0((o.first_passage || {}).p_target_first) + '; the rule level first: ' + pct0((o.first_passage || {}).p_stop_first) + '.')));
-    ob.append(el('p', 'muted', L('Metod: Martin, Rodenkirchen, Wagner och Wang (2026). Nästa rapport: ', 'Method: Martin, Rodenkirchen, Wagner and Wang (2026). Next report: ') + calText(p) + '.'));
-  }
+  if (!hasOpt(p)) { marks.append(el('span', 'mark warn', L('inga optioner', 'no options'))); ob.append(marks, el('p', null, L('Datakällan har inga optioner för ' + p.chart + ', så maskinen visar vanlig svängning i stället för ett mål.', 'The data source has no options for ' + p.chart + ', so the machine shows ordinary swings instead of a target.'))); }
+  else if (pub()) optPub(ob, marks, p, o);
   // talen bakom grafen
   const tt = $('chart-table'); tt.textContent = '';
-  const rows = [[L('Stängning ', 'Close ') + dS(p.asof), px(p.chart_px)], ['SMA 52 / SMA 252 ' + L('(dag)', '(daily)'), px(p.sma_d['52'].v) + ' / ' + px(p.sma_d['252'].v)], [L('Regelnivå', 'Rule level'), px(p.rule.level)]];
-  if (ok(p.target)) rows.push([LV('Ditt mål', 'Målet', 'Your target', 'Target'), tal(p.target)]);
+  const rows = [[L('Stängning ', 'Close ') + dS(p.asof), px(p.chart_px)], ['SMA 52 / SMA 252 ' + L('(dag)', '(daily)'), px(p.sma_d['52'].v) + ' / ' + px(p.sma_d['252'].v)]];
+  if (pub()) { if (watched(p).length) rows.push([L('Nivåer Bilel följer', 'Levels Bilel follows'), watched(p).map(px).join(', ')]); }
   if (regD(p)) { const c = regD(p).channel; rows.push([L('Kanalen i dag: nedre, mitt, övre', 'Channel today: lower, mid, upper'), px(c.lower) + ', ' + px(c.line) + ', ' + px(c.upper)]); }
-  if (hasOpt(p)) { rows.push([L('Optionerna om ett år: 5, 25, 50, 75, 95 %', 'Options in a year: 5, 25, 50, 75, 95%'), ['q5', 'q25', 'q50', 'q75', 'q95'].map(k => px(o.quantiles_12m[k])).join(', ')]); rows.push([L('Förväntat pris om ett år', 'Expected price in a year'), px(o.target_12m) + ' (' + oiNote(o, true) + ')']); }
+  if (hasOpt(p)) { rows.push([L('Optionerna om ett år: 5, 25, 50, 75, 95 %', 'Options in a year: 5, 25, 50, 75, 95%'), ['q5', 'q25', 'q50', 'q75', 'q95'].map(k => px(o.quantiles_12m[k])).join(', ')]); rows.push([L('Förväntat pris om ett år', 'Expected price in a year'), px(o.target_12m) + ' (' + (pub() ? (malNot(p) || (o.metod === 'yta' ? L('volatilitetsytan', 'volatility surface') : L('lösenpriser med bud', 'strikes with bids'))) : oiNote(o, true)) + ')']); if (pub()) rows.push([L('Målet, avrundat', 'The target, rounded'), num(malTal(p), 0)]); }
   const th = el('tr'); th.append(el('th', null, L('Mått', 'Measure')), el('th', null, L('Värde', 'Value'))); tt.append(th);
   rows.forEach(([a, b]) => { const tr = el('tr'); tr.append(el('td', null, a), el('td', null, b)); tt.append(tr); });
   $('chart-sum').textContent = L('Talen bakom grafen', 'The numbers behind the chart');
@@ -1149,7 +1098,7 @@ function positionssida() {
 
 function metod() {
   applyRoot();
-  document.title = L('Metoden · Portföljen', 'The method · Portföljen');
+  document.title = pub() ? L('Om portföljen · Portföljen', 'About · Portföljen') : L('Metoden · Portföljen', 'The method · Portföljen');
   $('tag').textContent = '';
   const back = el('a', null, L('← Förstasidan', '← Front page')); back.href = href('index.html'); $('tag').append(back);
   controls($('ctrls'), ch => { setState(ch, true); metod(); });
@@ -1157,9 +1106,15 @@ function metod() {
   const host = $('metod'); host.textContent = '';
   const content = root.TidningMetod ? root.TidningMetod(api) : [];
   const toc = $('toc'); toc.textContent = '';
-  $('m-h1').textContent = L('Så räknas talen', 'How the numbers are made');
-  $('m-ingress').textContent = L('En tidning om fem positioner, skriven av en maskin två gånger om dagen. Ägarens omdöme står kvar i ägarens egna ord; allt som går att mäta räknas och prövas mot de regler ägaren själv har skrivit. Den här sidan säger vad som mäts, hur, och vad som inte mäts.',
-    "A newspaper about five positions, written by a machine twice a day. The owner's judgment stays in the owner's own words; everything that can be measured is calculated and tested against rules the owner wrote. This page says what is measured, how, and what is not.");
+  $('m-h1').textContent = pub() ? L('Om portföljen', 'About the portfolio') : L('Så räknas talen', 'How the numbers are made');
+  $('m-ingress').textContent = L('Ett öppet försök att slå världsindex. Här står vad sidan mäter, hur målen räknas och vad den inte visar.', 'An open attempt to beat the world index. This page says what the site measures, how the targets are calculated and what it does not show.');
+  // kolumnerna överst (publikt): en kort text per huvudsektion och en länk ned till den
+  const oldKol = document.querySelector('.om-kol'); if (oldKol) oldKol.remove();
+  if (pub()) {
+    const kol = el('section', 'om-kol'); kol.setAttribute('aria-label', L('Om portföljen i korthet', 'The portfolio in brief'));
+    content.forEach((sec, i) => { if (!sec.kol) return; const d = el('div'); d.append(el('h2', null, sec.h), el('p', null, sec.kol)); const a = el('a', null, L('Läs mer', 'Read more')); a.href = '#m' + (i + 1); d.append(a); kol.append(d); });
+    const mh = document.querySelector('.mhead'); if (mh) mh.after(kol);
+  }
   content.forEach((sec, i) => {
     const s = el('section', 'msec'); s.id = 'm' + (i + 1);
     s.append(el('h2', null, sec.h));
@@ -1167,7 +1122,7 @@ function metod() {
       if (typeof b === 'string') s.append(el('p', null, b));
       else if (b.ul) { const ul = el('ul'); b.ul.forEach(t => ul.append(el('li', null, t))); s.append(ul); }
       else if (b.table) { const tb = el('table', 't'); const h = el('tr'); b.table[0].forEach(x => h.append(el('th', null, x))); tb.append(h); b.table.slice(1).forEach(r => { const tr = el('tr'); r.forEach(x => tr.append(el('td', null, x))); tb.append(tr); }); s.append(tb); }
-      else if (b.src) s.append(el('p', 'src', b.src));
+      else if (b.src) { const ps = el('p', 'src', b.src); if (b.url) { const a = el('a', null, b.urlText || b.url); a.href = b.url; a.rel = 'noopener noreferrer'; ps.append(document.createTextNode(' '), a); } s.append(ps); }
     });
     host.append(s);
     const li = el('li'), a = el('a', null, sec.h); a.href = '#m' + (i + 1); li.append(a); toc.append(li);
@@ -1178,10 +1133,10 @@ function metod() {
 const api = {
   S, P, POS, BYW, ASOF, BUILT, state, setState, applyRoot, href, L, LV, en, pub,
   fmt: { num, sgn, pctU, pctS, pct0, ppS, kr, krS, kronor, px, money, tal, dS, dSY, dL, wd, cap, onDay },
-  nm, prose, pos, ruleLvl, ruleDist, ruleAtr, noise5, noise21, near, regD, regW, hasOpt, oiNote, ruleWords, levelText, stateOf, stateWord, events, evList, edDate, approxMonths, outside, short, exchange, calText,
+  nm, prose, pos, watched, levelsText, malTal, malNot, malBelopp, senaste, senasteText, regD, regW, hasOpt, oiNote, events, evList, edDate, approxMonths, outside, short, exchange, calText,
   text: { headline, lede, byline, brief, briefLabel, storyHeadline, heldLine, dek, checks, chartCaption, barsNote },
   chart: { gauge, gaugeKeys, excess, bars, spark, positionChart, chartLegend, skin },
-  dom: { el, put, partsTo, stateNode, controls, ears, strip, calendarList, markets, borslistan, footer, teaser },
+  dom: { el, put, partsTo, controls, ears, strip, calendarList, markets, borslistan, footer, teaser },
   forsta, positionssida, metod, whenFonts, onResize,
 };
 root.Tidning = api;

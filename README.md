@@ -1,9 +1,9 @@
 # Portföljen
 
-En tidning om fem positioner, skriven av en maskin ur kurserna och ägarens egna positionskort. Morgonupplaga 09:00 och kvällsupplaga 22:15, på svenska och engelska.
+Ett öppet försök att slå världsindex MSCI World med fem positioner. Varje köp jämförs med samma insats i MSCI World samma dag. Sidan skrivs av en maskin ur kurserna, och Bilel skriver ibland själv.
 
-Prototyp med kurser från stängningen fredag 2 oktober 2026. Sajten visar procent, procentenheter, vikter, kurser, nivåer och mål. Den publicerar inga kronbelopp, antal eller kontouppgifter: datan innehåller bara de tal som sidorna visar.
+Prototyp med kurser från stängningen fredag 2 oktober 2026. Sajten visar procent, procentenheter, vikter, kurser, nivåerna Bilel följer, kursmål ur optionspriser och den senaste händelsen per innehav. Den publicerar inga kronbelopp, antal, kontouppgifter eller regler för köp och försäljning: datan innehåller bara det som sidorna visar.
 
 Filerna byggs av ett skript i ett privat arbetsarkiv; ändra dem inte för hand.
 
-*A newspaper about five positions, written by a machine from market prices and the owner's own position cards. Prototype. No amounts, quantities or account details are published.*
+*An open attempt to beat the MSCI World index with five positions. Prototype. No amounts, quantities, account details or trading rules are published.*

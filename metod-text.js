@@ -3,103 +3,71 @@
 window.TidningMetod = function (T) {
   'use strict';
   const { L, LV, pub, fmt, POS, P } = T;
-  const nr = T.near(), nd = T.ruleDist(nr);
-  const R = P.risk || {};
-  const oi = T.S.oiret_inputs || {};
-  const meta = T.S.meta || {};
-  const raw = id => { const p = T.pos(id); return p && p.oiret && !p.oiret.err ? fmt.px(p.oiret.target_12m) : '—'; };
-  const surface = { PLTR: 221.58965607702896, NVDA: 250.26460109569157, EME: 845.095763918052 };
   const ordet = n => (T.en() ? ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'] : ['noll', 'en', 'två', 'tre', 'fyra', 'fem', 'sex', 'sju', 'åtta', 'nio', 'tio'])[n] || String(n);
   const names = POS.map(T.nm);
   const nameList = names.slice(0, -1).join(', ') + L(' och ', ' and ') + names[names.length - 1];
-  return [
-    { h: L('Vad det här är', 'What this is'), body: [
-      L('Portföljen följer ' + ordet(POS.length) + ' verkliga positioner: ' + nameList + '. För varje position finns ett kort som ägaren fyller i för hand: tes, ankarpunkter, glidande medelvärden, nivåer, exitregel, mål och plan. Maskinen gör kortet levande. Ägarens ord står kvar oförändrade, i kursiv, och allt som går att mäta räknas om och prövas mot ägarens egna regler.',
-        'Portföljen follows ' + ordet(POS.length) + ' real positions: ' + nameList + '. Each position has a card the owner fills in by hand: thesis, anchor points, moving averages, levels, exit rule, target and plan. The machine brings the card to life. The owner\'s words stay as written, in italics, and everything that can be measured is recalculated and tested against the owner\'s own rules.'),
-      L('Tidningen kommer i två upplagor. Morgonupplagan 09:00 säger vad som är värt att bevaka under dagen. Kvällsupplagan 22:15 säger vad som hände, en kvart efter att den amerikanska börsen stängt.',
-        'The paper comes in two editions. The 09:00 morning edition says what is worth watching during the day. The 22:15 evening edition says what happened, a quarter of an hour after the US market closes.'),
-      L('Den här versionen är en prototyp med riktiga kurser från stängningen ' + fmt.wd(T.ASOF) + ' ' + fmt.dSY(T.ASOF) + '. Rapporterna körs ännu inte automatiskt.',
-        'This version is a prototype with real prices from the close on ' + fmt.wd(T.ASOF) + ', ' + fmt.dSY(T.ASOF) + '. The reports do not yet run automatically.'),
-    ] },
-    { h: L('Mallen', 'The template'), body: [
-      L('Varje kort har samma fält, i samma ordning:', 'Every card has the same fields, in the same order:'),
-      { ul: [
-        L('Position: instrument, köp, bias och en kort tes.', 'Position: instrument, purchase, bias and a short thesis.'),
-        L('Regression: ankarpunkter på vecko-, dags- och fyratimmarsgrafen, och en kommentar.', 'Regression: anchor points on the weekly, daily and four-hour charts, and a comment.'),
-        L('SMA: läget mot glidande medelvärden på 21, 52, 126 och 252 dagar och veckor.', 'SMA: position against the 21, 52, 126 and 252-day and week moving averages.'),
-        L('Nivåer: varningsnivå på fyratimmarsgrafen, huvudnivå på dagsgrafen och exitbekräftelse, direkt eller efter två stängningar.', 'Levels: a warning level on the four-hour chart, a main level on the daily chart and an exit confirmation, immediate or after two closes.'),
-        L('Mål, händelser och plan: håller så länge, orolig om, säljer om.', 'Target, events and plan: holds as long as, worried if, sells if.'),
+  /* Den publika upplagan (Om portföljen): syftet, jämförelsen, kursmålen och det som inte visas; varje sektion med
+     "kol" blir en kolumn överst på sidan. Konceptets privata metodsida nedan följer inte med till sajten. */
+  if (pub()) {
+    const R = P.risk || {}, oi = T.S.oiret_inputs || {};
+    return [
+      { h: L('Syftet', 'The aim'),
+        kol: L('Portföljen ska slå världsindex. Varje köp ställs mot samma insats i MSCI World samma dag, så skillnaden visar vad valen har gett utöver att bara äga fonden.',
+          'The portfolio aims to beat the world index. Every purchase is set against the same money in MSCI World on the same day, so the difference shows what the picks have added beyond simply owning the fund.'),
+        body: [
+          L('Portföljen följer ' + ordet(POS.length) + ' verkliga positioner: ' + nameList + '. Den jämförs hela tiden med det enklaste alternativet, en global indexfond. Slår den inte fonden över tid är fonden det bättre valet.',
+            'Portföljen follows ' + ordet(POS.length) + ' real positions: ' + nameList + '. It is always compared with the simplest alternative, a global index fund. If it does not beat the fund over time, the fund is the better choice.'),
+          L('Sidan skrivs av en maskin ur kurserna, och Bilel skriver ibland själv. Den här versionen är en prototyp med kurser från stängningen ' + fmt.wd(T.ASOF) + ' ' + fmt.dSY(T.ASOF) + '; uppdateringen två gånger om dagen kommer senare.',
+            'The site is written by a machine from prices, and Bilel sometimes writes himself. This version is a prototype with prices from the close on ' + fmt.wd(T.ASOF) + ', ' + fmt.dSY(T.ASOF) + '; updates twice a day will follow.'),
+          L('En portfölj på fem positioner under några månader bevisar ingen förmåga att slå marknaden. Sidan visar försöket öppet, även när det går dåligt.',
+            'A portfolio of five positions over a few months proves no ability to beat the market. The site shows the attempt openly, even when it goes badly.'),
+        ] },
+      { h: L('Så jämför vi', 'How we compare'),
+        kol: L('MSCI World Net direkt från MSCI, med utdelningarna återinvesterade, omräknat till kronor. Portföljens egna utdelningar räknas också in. Fondens avgift ingår inte.',
+          'MSCI World Net straight from MSCI, with dividends reinvested, converted to SEK. The portfolio\'s own dividends are included too. The fund\'s fee is not.'),
+        body: [
+          L('Varje köp jämförs med samma insats, samma dag, i MSCI World med utdelningarna återinvesterade: MSCI:s eget index MSCI World Net, omräknat till kronor med dollarkursen. Skillnaden är vad valen har gett utöver världsindex. I dag har portföljen gett ' + fmt.pctS(P.ret) + ' på vad köpen kostade, och samma insats i MSCI World ' + fmt.pctS(P.msci_ret) + '.',
+            'Each purchase is compared with the same money invested on the same day in MSCI World with dividends reinvested: MSCI\'s own MSCI World Net index, converted to SEK at the dollar rate. The difference is what the picks have added beyond the world index. Today the portfolio has made ' + fmt.pctS(P.ret) + ' on what the purchases cost, and the same money in MSCI World ' + fmt.pctS(P.msci_ret) + '.'),
+          L('Båda sidor räknar in utdelningar: indexet efter källskatt, portföljen med de utdelningar innehaven har gett efter köpet. MSCI World Net är indexet som fonden en svensk sparare köper, iShares Core MSCI World (IWDA), följer, och det räknas som portföljen: varje marknad på sin egen stängning. Fondens avgift på 0,20 % per år ingår inte. Bara nuvarande innehav ingår.',
+            'Both sides include dividends: the index after withholding tax, the portfolio with the dividends its holdings have paid since purchase. MSCI World Net is the index tracked by the fund a Swedish saver buys, iShares Core MSCI World (IWDA), and it is calculated like the portfolio: each market at its own close. The fund\'s fee of 0.20% a year is not included. Only current holdings are included.'),
+        ] },
+      { h: L('Kursmålen', 'The price targets'),
+        kol: L('Målen kommer från en studie från 2026 som läser förväntad avkastning ur optionspriser. Målet är dagens kurs uppräknad med den förväntade avkastningen på ett år, avrundad till heltal. Det är marknadens prissättning, inte Bilels prognos.',
+          'The targets come from a 2026 study that reads expected returns from option prices. The target is today\'s price grown by the expected return over a year, rounded to a whole number. It is the market\'s pricing, not Bilel\'s forecast.'),
+        body: [
+          L('Målen räknas med OIRet, metoden i Martin, Rodenkirchen, Wagner och Wang (2026). Förväntad överavkastning = Rf × [marknadens SVIX² + ½ × (aktiens SVIX² − snittet för S&P 500)], där Rf = e^r är vad en riskfri insats växer till på ett år (r är den riskfria räntan), och den förväntade avkastningen är överavkastningen plus Rf − 1. SVIX² mäts ur optionspriserna och säger hur mycket marknaden betalar för att skydda sig. Formeln har inga skattade parametrar; optionspriserna jämnas först ut till en volatilitetsyta.',
+            'Targets use OIRet, the method in Martin, Rodenkirchen, Wagner and Wang (2026). Expected excess return = Rf × [market SVIX² + ½ × (stock SVIX² − the S&P 500 average)], where Rf = e^r is what a risk-free stake grows to in a year (r is the risk-free rate), and the expected return is the excess return plus Rf − 1. SVIX² is measured from option prices and says how much the market pays for protection. The formula has no estimated parameters; the option prices are first smoothed into a volatility surface.'),
+          L('Målet = dagens kurs × (1 + förväntad avkastning på ett år), avrundat till heltal. SVIX² mäts som i studien, över en volatilitetsyta. Författarna rapporterar att metoden, använd direkt som prognos, ger ett R² utanför urvalet på 21 % jämfört med analytikernas riktkurser.',
+            'Target = today\'s price × (1 + expected return over a year), rounded to a whole number. SVIX² is measured as in the study, over a volatility surface. The authors report that the method, used directly as a forecast, gives an out-of-sample R² of 21% relative to analysts\' price targets.'),
+          { table: [[L('Innehav', 'Holding'), L('Mål om ett år', 'Target in a year'), L('Not', 'Note')]].concat(T.BYW.map(p => [T.nm(p),
+            T.malTal(p) === null ? '—' : fmt.num(T.malTal(p), 0) + ' ' + (T.en() ? p.chart_ccy : ({ USD: 'dollar', EUR: 'euro' }[p.chart_ccy] || p.chart_ccy)) + (p.chart !== p.held ? ' (' + p.chart + ')' : ''),
+            T.malTal(p) === null ? L('inga optioner hos datakällan', 'no options at the data source') : (T.malNot(p) || L('volatilitetsytan', 'volatility surface'))])) },
+          L('Målen är ännu inte jämförda med författarnas egna serier, som slutar i augusti 2025. Emcor har optioner till ungefär ett halvår. Koreafondens egna optioner har för få bud, så dess mål räknas ur optionerna på EWY, en fond med samma koreanska storbolag (korrelation 0,997 det senaste året); fonden ligger utanför studiens bevis. Siemens Energys optioner handlas på Eurex i Frankfurt: där räknas målet ur Eurex dagliga avräkningspriser, med samma yta och med den euroränta som priserna ger. Studien prövade bara aktier i S&P 500, så även Siemens Energy ligger utanför dess bevis.',
+            'The targets are not yet compared with the authors\' own series, which end in August 2025. Emcor has options out to about half a year. The Korea fund\'s own options have too few bids, so its target is calculated from the options on EWY, a fund holding the same large Korean companies (correlation 0.997 over the past year); the fund is outside the study\'s evidence. Siemens Energy\'s options trade on Eurex in Frankfurt: its target is calculated from Eurex daily settlement prices, with the same surface and the euro rate the prices imply. The study only tested S&P 500 stocks, so Siemens Energy is outside its evidence too.'),
+          { src: L('Riskfri ränta ' + fmt.pctU(oi.rf, 2) + ' (FRED DGS1, ' + fmt.dS(oi.rf_date) + '); för Siemens Energy euroräntan ' + fmt.pctU(oi.rf_eur, 2) + ' ur Eurex priser (ECB:s ettåriga AAA-ränta ' + fmt.dS(oi.rf_date) + ': ' + fmt.pctU(oi.rf_eur_ecb, 2) + '). Källa: Martin, Rodenkirchen, Wagner och Wang (2026); författarnas data och läsmig:',
+            'Risk-free rate ' + fmt.pctU(oi.rf, 2) + ' (FRED DGS1, ' + fmt.dS(oi.rf_date) + '); for Siemens Energy the euro rate of ' + fmt.pctU(oi.rf_eur, 2) + ' from Eurex prices (the ECB one-year AAA rate on ' + fmt.dS(oi.rf_date) + ': ' + fmt.pctU(oi.rf_eur_ecb, 2) + '). Source: Martin, Rodenkirchen, Wagner and Wang (2026); the authors\' data and readme:'),
+            url: 'https://personal.lse.ac.uk/martiniw/oiret.html', urlText: 'personal.lse.ac.uk/martiniw/oiret.html' },
+        ] },
+      { h: L('Det vi inte visar', 'What we do not show'),
+        kol: L('Belopp, antal och konton. Reglerna för när en position köps eller säljs. Talen räknas ur marknadsdata; texterna om innehaven skrivs för hand.',
+          'Amounts, quantities and accounts. The rules for when a position is bought or sold. The numbers come from market data; the texts about the holdings are written by hand.'),
+        body: [
+          { ul: [
+            L('Belopp i kronor, antal och konton. Allt visas som procent av insatsen.', 'SEK amounts, quantities and accounts. Everything is shown as a percentage of the money in.'),
+            L('Reglerna för när en position köps eller säljs. Nivåerna Bilel följer syns, men inte vad han gör vid dem.', 'The rules for when a position is bought or sold. The levels Bilel follows are shown, but not what he does at them.'),
+            L('Skatt, avgifter och sålda positioner. Resultatet räknas på köpkurserna.', 'Tax, fees and sold positions. Results use the purchase prices.'),
+            L('Framtiden. Målen är marknadens prissättning, inte en prognos.', 'The future. The targets are the market\'s pricing, not a forecast.'),
+            L('Risken är bakåtblickande: ett år med dagens vikter, volatilitet ' + fmt.pctU(R.vol_ann, 0) + ' per år och beta ' + fmt.num(R.beta_msci, 2) + ' mot MSCI World.', 'Risk looks backwards: one year at today\'s weights, volatility ' + fmt.pctU(R.vol_ann, 0) + ' a year and beta ' + fmt.num(R.beta_msci, 2) + ' to MSCI World.'),
+          ] },
+        ] },
+      { h: L('Datan', 'The data'), body: [
+        L('Kurser, valutor, optioner och rapportdatum kommer från Yahoo Finance, Siemens Energys optioner från Eurex, EWY:s optioner från Cboe, indexet från MSCI och den riskfria räntan från FRED. Ett tal som saknas visas som saknat, aldrig som noll.',
+          'Prices, currencies, options and report dates come from Yahoo Finance, Siemens Energy\'s options from Eurex, EWY\'s options from Cboe, the index from MSCI and the risk-free rate from FRED. A missing number is shown as missing, never as zero.'),
       ] },
-      L('Tomma fält visas som tomma. Maskinen skriver aldrig text i ägarens fält.', 'Empty fields are shown as empty. The machine never writes in the owner\'s fields.'),
-    ] },
-    { h: L('Vad maskinen kontrollerar', 'What the machine checks'), body: [
-      { ul: [
-        L('Glidande medelvärden. Står det ”äntligen över SMA 252” kontrolleras att kursen ligger över SMA 252, och hur långt över.', 'Moving averages. If the card says "finally above the SMA 252", the machine checks that the price is above it, and by how much.'),
-        L('Ankarpunkter. Varje ankare letas upp i kursdatan och avvikelsen redovisas.', 'Anchor points. Every anchor is located in the price data and the deviation is reported.'),
-        L('Regressionskanaler. Kanalen från ankaret ritas som TradingViews Regression Trend: minsta kvadrat på stängningskursen, band på två standardavvikelser. Husets eget test fann ingen köp- eller säljfördel i kanalläget, så kanalen beskriver men signalerar inte.', 'Regression channels. The channel from the anchor is drawn like TradingView\'s Regression Trend: least squares on the close, bands at two standard deviations. The house\'s own test found no buy or sell edge in the channel position, so the channel describes but does not signal.'),
-        L('Motsägelser. Säger ett kort både ”Bullish” och ”Svag bear” flaggas det, utan att maskinen gissar vilket som gäller.', 'Contradictions. If a card says both "Bullish" and "weak bear" it is flagged, without the machine guessing which one holds.'),
-        L('Omdömen som ”bränslet börjar ta slut” går inte att mäta och märks så.', 'Judgments such as "running out of fuel" cannot be measured and are marked that way.'),
+      { h: L('Kontrollerna', 'The checks'), body: [
+        L('Varje version kontrolleras innan den publiceras. Ett test letar efter de riktiga beloppen i alla filer och stoppar versionen om något av dem syns, ett annat jämför sidans text med originalet, och tre oberoende granskare prövar ändringen.',
+          'Every version is checked before it is published. One test searches all files for the real amounts and stops the version if any of them appears, another compares the page text with the original, and three independent reviewers test the change.'),
       ] },
-    ] },
-    { h: L('Regelmotorn', 'The rule engine'), body: [
-      L('Exitregeln är maskinens tolkning av kortets ord. Den läser nivån och exitbekräftelsen: ”Direkt” betyder här första stängningen förbi nivån, ”2 closes” två stängningar i rad. Tolkningen väntar på ägarens bekräftelse.',
-        'The exit rule is the machine\'s reading of the card. It reads the level and the exit confirmation: "Direkt" means the first close beyond the level, "2 closes" two closes in a row. The reading awaits the owner\'s confirmation.'),
-      L('Varje regel har fyra lägen, och bara en övergång mellan dem larmar:', 'Each rule has four states, and only a change between them raises an alert:'),
-      { ul: [
-        L('Intakt: ingen stängning bortom nivån.', 'Intact: no close beyond the level.'),
-        L('Varning: minst en fyratimmarsstängning under varningsnivån.', 'Warning: at least one four-hour close below the warning level.'),
-        L('På väg: minst en stängning bortom regelnivån, men färre än regeln kräver.', 'Closing in: at least one close beyond the rule level, but fewer than the rule requires.'),
-        L('Utlöst: så många stängningar i rad som regeln kräver.', 'Triggered: as many closes in a row as the rule requires.'),
-      ] },
-      { table: [[L('Position', 'Position'), L('Regeln, maskinens tolkning', 'The rule, as the machine reads it'), L('Läge i dag', 'State today')]].concat(T.BYW.map(p => [T.nm(p), L('Sälj vid ', 'Sell on ') + T.ruleWords(p, true) + (p.chart !== p.held ? ' (' + p.chart + ')' : ''), T.stateWord(p) + ', ' + fmt.pctU(Math.abs(T.ruleDist(p))) + L(' över', ' above')])) },
-    ] },
-    { h: L('Brusrisken', 'The noise risk'), body: [
-      L('Brusrisken är chansen att kursen når regelnivån inom 5 eller 21 handelsdagar av ren normal svängning: en slumpvandring utan riktning med de senaste 60 dagarnas volatilitet. För ' + T.nm(nr) + ' är den ' + fmt.pct0(T.noise5(nr)) + ' inom fem dagar och ' + fmt.pct0(T.noise21(nr)) + ' inom 21, med kursen ' + fmt.pctU(Math.abs(nd)) + ' över nivån. Nivån ligger alltså inom vardagsbruset.',
-        'The noise risk is the chance that the price reaches the rule level within 5 or 21 trading days from ordinary swings alone: a random walk with no direction and the last 60 days\' volatility. For ' + T.prose(nr) + ' it is ' + fmt.pct0(T.noise5(nr)) + ' within five days and ' + fmt.pct0(T.noise21(nr)) + ' within 21, with the price ' + fmt.pctU(Math.abs(nd)) + ' above the level. The level is within everyday noise.'),
-      L('Det är information, inte en dom. Vad regeln ska skydda mot är ägarens beslut.', 'It is information, not a verdict. What the rule should protect against is the owner\'s decision.'),
-    ] },
-    { h: L('Riktkurser ur optionspriser', 'Price targets from option prices'), body: [
-      L('Målen räknas med OIRet, metoden i Martin, Rodenkirchen, Wagner och Wang (september 2026). Förväntad överavkastning = riskfri ränta × [marknadens SVIX² + ½ × (aktiens SVIX² − snittet för S&P 500)]. SVIX² mäts ur optionspriserna och säger hur mycket marknaden betalar för att skydda sig. Ingen parameter skattas.',
-        'Targets use OIRet, the method in Martin, Rodenkirchen, Wagner and Wang (September 2026). Expected excess return = risk-free rate × [market SVIX² + ½ × (stock SVIX² − the S&P 500 average)]. SVIX² is measured from option prices and says how much the market pays for protection. No parameter is estimated.'),
-      L('Författarna rapporterar att metoden, använd direkt som prognos utan anpassning, ger ett R² utanför urvalet på 21 % jämfört med analytikernas riktkurser. Spridningen och sannolikheterna i tidningen kommer ur optionernas implicita volatilitet.',
-        'The authors report that the method, used directly as a forecast with no fitting, gives an out-of-sample R² of 21% relative to analysts\' price targets. The spread and probabilities in the paper come from the options\' implied volatility.'),
-      L('Målen är preliminära. Prototypen integrerar över de lösenpriser som har bud. Författarna räknar över en volatilitetsyta, och den versionen, som produkten ska använda, flyttar målen några dollar:',
-        'The targets are preliminary. The prototype integrates over the strikes that have bids. The authors compute over a volatility surface, and that version, which the product will use, moves the targets by a few dollars:'),
-      { table: [[L('Mål om 12 mån', 'Target in 12 months'), L('Prototypen', 'Prototype'), L('Volatilitetsytan', 'Volatility surface')], ['Palantir', raw('PLTR'), fmt.px(surface.PLTR)], ['Nvidia', raw('NVDA'), fmt.px(surface.NVDA)], ['Emcor', raw('EME'), fmt.px(surface.EME)]] },
-      L('Emcor och Koreafonden har optioner till ungefär sex månader; deras mål är uppräknade till ett år och märkta. Koreafonden är en ETF och ligger utanför studiens evidens. Siemens Energy saknar optioner hos datakällan. Dagens tal är ännu inte validerade mot författarnas egna serier.',
-        'Emcor and the Korea fund have options out to about six months; their targets are annualised and marked. The Korea fund is an ETF and outside the study\'s evidence. Siemens Energy has no options at the data source. Today\'s figures are not yet validated against the authors\' own series.'),
-      { src: L('Riskfri ränta ' + fmt.pctU(oi.rf, 2) + ' (FRED DGS1, ' + fmt.dS(oi.rf_date) + '). Källa: Martin, Rodenkirchen, Wagner och Wang (2026); författarnas data och läsmig på personal.lse.ac.uk/martiniw/oiret.html.',
-        'Risk-free rate ' + fmt.pctU(oi.rf, 2) + ' (FRED DGS1, ' + fmt.dS(oi.rf_date) + '). Source: Martin, Rodenkirchen, Wagner and Wang (2026); the authors\' data and readme at personal.lse.ac.uk/martiniw/oiret.html.') },
-    ] },
-    { h: L('Jämförelsen mot MSCI World', 'The comparison with MSCI World'), body: [
-      L('Varje köp jämförs med samma kronor, samma dag, i MSCI World med utdelningarna återinvesterade: MSCI:s eget index MSCI World Net, omräknat till kronor med dollarkursen. Skillnaden är vad valen har gett utöver världsindex. I dag har portföljen gett ' + fmt.pctS(P.ret) + ' på vad köpen kostade, och samma insats i MSCI World ' + fmt.pctS(P.msci_ret) + (pub() ? '.' : ', en skillnad på ' + fmt.krS(P.excess_sek) + '.'),
-        'Each purchase is compared with the same amount invested on the same day in MSCI World with dividends reinvested: MSCI\'s own MSCI World Net index, converted to SEK at the dollar rate. The difference is what the picks have added beyond the world index. Today the portfolio has made ' + fmt.pctS(P.ret) + ' on what the purchases cost, and the same money in MSCI World ' + fmt.pctS(P.msci_ret) + (pub() ? '.' : ', a difference of ' + fmt.krS(P.excess_sek) + '.')),
-      L('Båda sidor räknar in utdelningar: indexet med utdelningarna återinvesterade efter källskatt, portföljen med de utdelningar innehaven har gett efter köpet. MSCI World Net är indexet som fonden en svensk sparare köper, iShares Core MSCI World (IWDA), följer, och det räknas som portföljen: varje marknad på sin egen stängning. Fondens avgift på 0,20 % per år ingår inte. Bara nuvarande innehav ingår; sålda positioner kräver transaktionshistoriken och läggs till senare.',
-        'Both sides include dividends: the index with dividends reinvested after withholding tax, the portfolio with the dividends its holdings have paid since purchase. MSCI World Net is the index tracked by the fund a Swedish saver buys, iShares Core MSCI World (IWDA), and it is calculated like the portfolio: each market at its own close. The fund\'s fee of 0.20% a year is not included. Only current holdings are included; sold positions need the transaction history and will be added later.'),
-    ] },
-    { h: L('Vad som inte mäts', 'What is not measured'), body: [
-      { ul: [
-        L('En portfölj på fem positioner under några månader bevisar ingen förmåga att slå marknaden. Tidningen visar en process, inte en avkastningshistorik.', 'A portfolio of five positions over a few months proves no ability to beat the market. The paper shows a process, not a track record.'),
-        pub() ? L('Avgifter och växling: resultatet räknas på köpkurserna, och korten anger ett något högre insatt belopp.', 'Fees and currency conversion: results use the purchase prices, and the cards state a slightly higher amount invested.')
-          : L('Avgifter och växling: resultatet räknas på köpkurserna; korten säger ' + fmt.kr(P.invested_reported_sek) + ' insatt mot ' + fmt.kr(P.cost_sek) + ' i köpkurser.', 'Fees and currency conversion: results use the purchase prices; the cards say ' + fmt.kr(P.invested_reported_sek) + ' invested against ' + fmt.kr(P.cost_sek) + ' at purchase prices.'),
-        L('Skatt och sålda positioner.', 'Tax and sold positions.'),
-        L('Nyheter, fundamenta och omdömen som ”AI-bubblan spricker”.', 'News, fundamentals and judgments such as "the AI bubble bursts".'),
-        L('Framtiden. Optionsmålen är marknadens prissättning, inte en prognos från ägaren eller maskinen.', 'The future. The option targets are the market\'s pricing, not a forecast by the owner or the machine.'),
-        L('Risken är bakåtblickande: ett år med dagens vikter, volatilitet ' + fmt.pctU(R.vol_ann, 0) + ' per år och beta ' + fmt.num(R.beta_msci, 2) + ' mot MSCI World.', 'Risk looks backwards: one year at today\'s weights, volatility ' + fmt.pctU(R.vol_ann, 0) + ' a year and beta ' + fmt.num(R.beta_msci, 2) + ' to MSCI World.'),
-      ] },
-    ] },
-    { h: L('Prognosliggaren', 'The forecast ledger'), body: [
-      L('Planerad. Varje riktkurs och sannolikhet ska publiceras innan utfallet och poängsättas när tiden gått ut, även missarna. Den finns inte i prototypen.',
-        'Planned. Every target and probability will be published before the outcome and scored when the time is up, misses included. It is not in the prototype.'),
-    ] },
-    { h: L('Datan', 'The data'), body: [
-      L('Kurser, valutor, optioner och rapportdatum kommer från Yahoo Finance och den riskfria räntan från FRED. Datan byggdes ' + fmt.wd(T.BUILT) + ' ' + fmt.dS(T.BUILT) + ' ' + String(T.BUILT).slice(11, 16) + (meta.seconds ? ' på ' + fmt.num(meta.seconds, 1) + ' sekunder' : '') + '. Ett tal som saknas visas som saknat, aldrig som noll.',
-        'Prices, currencies, options and report dates come from Yahoo Finance and the risk-free rate from FRED. The data was built ' + fmt.wd(T.BUILT) + ' ' + fmt.dS(T.BUILT) + ' ' + String(T.BUILT).slice(11, 16) + (meta.seconds ? ' in ' + fmt.num(meta.seconds, 1) + ' seconds' : '') + '. A missing number is shown as missing, never as zero.'),
-      L('Rapporterna ska köras i molnet 09:00 och 22:15, eftersom en bärbar dator med stängt lock inte kan lova en tid.', 'The reports will run in the cloud at 09:00 and 22:15, because a laptop with its lid closed cannot promise a time.'),
-    ] },
-    { h: L('Den publika upplagan', 'The public edition'), body: [
-      L('Den publika upplagan visar procent, vikter, kurser, nivåer och mål. Den visar aldrig kronor, antal eller konto. Ett test letar efter de kända beloppen i sidans text och underkänner sidan om något av dem syns.',
-        'The public edition shows percentages, weights, prices, levels and targets. It never shows SEK amounts, quantities or account details. A test searches the page text for the known amounts and fails the page if any of them appears.'),
-    ] },
-  ];
+    ];
+  }
 };

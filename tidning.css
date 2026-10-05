@@ -1,6 +1,6 @@
 /* Portföljen v2: tidningen i två upplagor.
    Morgonupplagan 09:00 är papper, kvällsupplagan 22:15 är natttryck. Samma raster, samma typsnitt och samma data;
-   bara ljuset byts. Färgerna i graferna har en uppgift var: röd = regeln, blå = målet, magenta = optionerna,
+   bara ljuset byts. Färgerna i graferna har en uppgift var: röd = nivåerna, blå = målet, magenta = optionerna,
    grön och röd ljus = upp och ned (ihåliga och fyllda, så att formen bär skillnaden även utan färgseende).
    Paletterna är prövade med dataviz-skillens validator (alla par, ljus och mörk yta). */
 :root{
@@ -322,4 +322,35 @@ details.numbers table{margin-top:8px;max-width:760px}
   .mhead p{font-size:18px}
   .listhead{flex-direction:column}
   .listhead p{text-align:left}
+}
+
+/* ---------- bloggen (publikläget): notisen, Senaste, källorna och Om-kolumnerna ---------- */
+.notis{border:1px solid var(--ink);background:var(--box);padding:14px 18px 12px;margin:12px 0 4px;max-width:74ch}
+.notis h2{font-family:var(--serif);font-weight:700;font-size:24px;line-height:1.15;margin:0 0 4px;font-variation-settings:"opsz" 48}
+.notis p{margin:0;font-size:16.5px;line-height:1.5}
+.notis .notis-rad{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;margin-top:10px;font-family:var(--sans);font-size:13px}
+.notis button{all:unset;box-sizing:border-box;cursor:pointer;font-family:var(--sans);font-size:12.5px;font-weight:600;line-height:1;padding:8px 16px;background:var(--ink);color:var(--paper)}
+.notis button:focus-visible,.notis a:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.notis a{color:var(--ink-2)}
+.senaste{font-size:14.5px;line-height:1.42;color:var(--ink-2);margin:0 0 6px}
+.plan p.plain{font-style:normal}
+.kallor{font-family:var(--sans);font-size:12px;color:var(--ink-3);margin:8px 0 0;line-height:1.5}
+.kallor a{color:var(--ink-2)}
+.optbox p.muted a,.msec .src a{color:var(--ink-2)}
+.om-kol{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--ink)}
+.om-kol > div{padding:14px 16px 16px;border-left:1px solid var(--hair);min-width:0}
+.om-kol > div:first-child{border-left:0;padding-left:0}
+.om-kol h2{font-family:var(--serif);font-weight:700;font-size:22px;line-height:1.15;margin:0 0 6px;font-variation-settings:"opsz" 36}
+.om-kol p{margin:0 0 8px;font-size:16px;line-height:1.5}
+.om-kol a{font-family:var(--sans);font-size:13px;color:var(--ink-2)}
+@media (max-width:1180px){
+  .om-kol{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .om-kol > div:nth-child(3){border-left:0;padding-left:0}
+  .om-kol > div:nth-child(n+3){border-top:1px solid var(--hair)}
+}
+@media (max-width:760px){
+  .notis{padding:12px 14px}
+  .om-kol{grid-template-columns:1fr}
+  .om-kol > div,.om-kol > div:nth-child(3){border-left:0;padding-left:0;border-top:1px solid var(--hair)}
+  .om-kol > div:first-child{border-top:0}
 }
