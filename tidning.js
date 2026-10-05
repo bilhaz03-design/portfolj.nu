@@ -75,6 +75,8 @@ const pctU = (x, d = 1) => (ok(x) ? num(x * 100, d) + PCT() : '—');
 const pctS = (x, d = 1) => (ok(x) ? sgn(x * 100, d) + PCT() : '—');
 const pct0 = x => (!ok(x) ? '—' : x < 0.005 ? (en() ? '<1%' : '<1' + NB + '%') : x > 0.995 ? (en() ? '>99%' : '>99' + NB + '%') : num(x * 100, 0) + PCT());
 const ppS = (x, d = 1) => (ok(x) ? sgn(x * 100, d) + NB + 'pp' : '—');
+/* utdelningarna på inköpskostnaden, bredvid kurs och valuta, så att delarna går ihop med totalen */
+const divTxt = (p, sep) => (ok(p.div_ret) && p.div_ret > 0 ? sep + L('utdelningar ', 'dividends ') + pctS(p.div_ret) : '');
 const kr = x => (!ok(x) ? '—' : en() ? 'SEK' + NB + num(x, 0) : num(x, 0) + NB + 'kr');
 const krS = x => { if (!ok(x)) return '—'; if (!en()) return sgn(x, 0) + NB + 'kr'; const s = isZero(x, 0) ? '' : x > 0 ? '+' : MINUS; return s + 'SEK' + NB + num(Math.abs(x), 0); };
 const kronor = x => (!ok(x) ? '—' : en() ? 'SEK' + NB + num(x, 0) : num(x, 0) + NB + 'kronor');
@@ -614,7 +616,7 @@ function bars(host) {
 function barsNote() {
   return pub()
     ? L('Bidrag till försprånget i procentenheter av hela insatsen. Summa ' + ppS(P.excess_sek / P.cost_sek) + '. Sålda positioner ingår inte.', 'Contribution to the lead in percentage points of the whole stake. Total ' + ppS(P.excess_sek / P.cost_sek) + '. Sold positions are not included.')
-    : L('Samma kronor som varje köp kostade, köpta samma dag i MSCI World (URTH i kronor). Summa ' + krS(P.excess_sek) + '. Sålda positioner ingår inte.', 'The amount each purchase cost, invested the same day in MSCI World (URTH converted to SEK). Total ' + krS(P.excess_sek) + '. Sold positions are not included.');
+    : L('Samma kronor som varje köp kostade, köpta samma dag i MSCI World (URTH med utdelningar, i kronor). Summa ' + krS(P.excess_sek) + '. Sålda positioner ingår inte.', 'The amount each purchase cost, invested the same day in MSCI World (URTH with dividends, converted to SEK). Total ' + krS(P.excess_sek) + '. Sold positions are not included.');
 }
 
 /* --- gnistan i puffarna --- */
@@ -925,7 +927,7 @@ function teaser(p) {
   const f = el('dl', 'facts'), o = p.oiret || {};
   const add = (dt, nodes) => { f.append(el('dt', null, dt)); const dd = el('dd'); put(dd, nodes); f.append(dd); };
   add(L('Vikt', 'Weight'), [pctU(p.weight, 0) + (pub() ? '' : ', ' + kr(p.value_sek))]);
-  add(L('Resultat', 'Result'), [el('span', p.ret >= 0 ? 'pos' : 'neg', pctS(p.ret)), el('span', 'sub2', L(' kurs ', ' price ') + pctS(p.asset_ret) + L(', valuta ', ', currency ') + pctS(p.fx_ret))]);
+  add(L('Resultat', 'Result'), [el('span', p.ret >= 0 ? 'pos' : 'neg', pctS(p.ret)), el('span', 'sub2', L(' kurs ', ' price ') + pctS(p.asset_ret) + L(', valuta ', ', currency ') + pctS(p.fx_ret) + divTxt(p, ', '))]);
   add(L('Regel', 'Rule'), [stateNode(p), ' ' + pctU(Math.abs(ruleDist(p))) + L(' över, ', ' above, ') + num(ruleAtr(p), 1) + ' ATR', el('br'), el('span', 'sub2', levelText(p) + ', ' + ruleWords(p, false))]);
   add(L('Brus', 'Noise'), [pct0(noise5(p)) + L(' chans att nå nivån inom 5 dagar', ' chance of reaching the level within 5 days')]);
   const t = [LV('Ditt ', 'Kortets ', 'Yours ', "Card's "), el('i', null, p.target_text ? '”' + p.target_text + '”' : '—'), el('br')];
@@ -972,7 +974,7 @@ function borslistan(host, subHost) {
     td([nmSpan, el('span', 's', p.chart !== p.held ? short(p.held) + L(' i ', ' in ') + p.ccy + L(', graf ', ', chart ') + p.chart : short(p.held) + ' ' + px(p.px) + ' ' + p.ccy)]);
     td([pctU(p.weight, 0)]);
     if (!pub()) td([kr(p.value_sek)]);
-    td([el('span', p.ret >= 0 ? 'pos' : 'neg', pctS(p.ret)), el('span', 's', L('kurs ', 'price ') + sgn(p.asset_ret * 100, 1) + L(', valuta ', ', currency ') + sgn(p.fx_ret * 100, 1))]);
+    td([el('span', p.ret >= 0 ? 'pos' : 'neg', pctS(p.ret)), el('span', 's', L('kurs ', 'price ') + sgn(p.asset_ret * 100, 1) + L(', valuta ', ', currency ') + sgn(p.fx_ret * 100, 1) + (ok(p.div_ret) && p.div_ret > 0 ? L(', utd. ', ', div. ') + sgn(p.div_ret * 100, 1) : ''))]);
     td([stateNode(p), el('span', 's', p.rule.closes_beyond + L(' av ', ' of ') + p.rule.need + L(' stängningar', ' closes'))], 'l');
     td([pctU(l ? l.dist : ruleDist(p)), el('span', 's', num(l ? l.dist_atr : null, 1) + ' ATR')]);
     td([levelText(p), el('span', 's', ruleWords(p, false))], 'l');
@@ -1080,7 +1082,7 @@ function positionssida() {
   const figs = $('figs'); figs.textContent = '';
   const fig = (lab, val, sub, cls) => { const d = el('div'); d.append(el('span', 'lab', lab)); const v = el('span', 'val', val); if (cls) v.classList.add(cls); d.append(v); if (sub) d.append(el('span', 'sub', sub)); figs.append(d); };
   fig(L('Kurs', 'Price'), money(p.chart_px, p.chart_ccy), (p.chart !== p.held ? short(p.held) + ' ' + money(p.px, p.ccy) + ', ' : '') + wd(p.asof) + ' ' + pctS(p.day_local));
-  fig(L('Sedan köp', 'Since purchase'), pctS(p.ret), pub() ? L('kurs ', 'price ') + pctS(p.asset_ret) + L(', valuta ', ', currency ') + pctS(p.fx_ret) : krS(p.pnl_sek) + L('; kurs ', '; price ') + pctS(p.asset_ret) + L(', valuta ', ', currency ') + pctS(p.fx_ret), p.ret >= 0 ? 'pos' : 'neg');
+  fig(L('Sedan köp', 'Since purchase'), pctS(p.ret), (pub() ? L('kurs ', 'price ') + pctS(p.asset_ret) + L(', valuta ', ', currency ') + pctS(p.fx_ret) : krS(p.pnl_sek) + L('; kurs ', '; price ') + pctS(p.asset_ret) + L(', valuta ', ', currency ') + pctS(p.fx_ret)) + divTxt(p, ', '), p.ret >= 0 ? 'pos' : 'neg');
   fig(L('Vikt', 'Weight'), pctU(p.weight, 1), L('andel av risken ', 'share of risk ') + pctU(((P.risk || {}).contrib || {})[p.id], 0));
   fig(L('Mot MSCI World', 'vs MSCI World'), pub() ? ppS(p.ret - p.msci_ret) : krS(p.excess_sek), L('MSCI World samma dag ', 'MSCI World from the same day ') + pctS(p.msci_ret));
   fig(L('Regeln', 'The rule'), stateOf(p).sym + ' ' + stateWord(p), pctU(Math.abs(ruleDist(p))) + (ruleDist(p) >= 0 ? L(' över ', ' above ') : L(' under ', ' below ')) + px(p.rule.level) + ', ' + num(ruleAtr(p), 1) + ' ATR');
