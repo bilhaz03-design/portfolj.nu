@@ -780,7 +780,10 @@ function positionChart(host, p, opt) {
   // i dag
   sv('line', { x1: r1(m.l + histW), x2: r1(m.l + histW), y1: m.t - 6, y2: H - m.b, stroke: sk.rule, 'stroke-width': 1 }, svg);
   stext(svg, sk, m.l + histW - 6, m.t - 8, L('i dag', 'today'), { 'font-size': 11, fill: sk.ink2, 'text-anchor': 'end' });
-  stext(svg, sk, m.l + pw, m.t - 8, fan ? L('Om 12 månader, enligt optionerna', '12 months ahead, per the options') : L('Vanlig svängning, ingen prognos', 'Ordinary swings, not a forecast'), { 'font-size': 11, fill: sk.ink2, 'text-anchor': 'end' });
+  // rubriken över framtiden får inte gå in i "i dag": i smala fönster en kort rubrik, och ingen om inte ens den får plats
+  const fram = fan ? [L('Om 12 månader, enligt optionerna', '12 months ahead, per the options'), L('Om 12 mån.', 'In 12 mo')] : [L('Vanlig svängning, ingen prognos', 'Ordinary swings, not a forecast'), L('Svängning', 'Swings')];
+  const framRubrik = fram.find(t => t.length * 6.1 <= pw - histW - 4);
+  if (framRubrik) stext(svg, sk, m.l + pw, m.t - 8, framRubrik, { 'font-size': 11, fill: sk.ink2, 'text-anchor': 'end' });
   sv('line', { x1: r1(xi(N - 1)), x2: r1(m.l + histW), y1: r1(Y(S0)), y2: r1(Y(S0)), stroke: sk.ink3, 'stroke-width': 1, 'stroke-dasharray': '2 2' }, svg);
   // optionernas tal
   if (fan) {
