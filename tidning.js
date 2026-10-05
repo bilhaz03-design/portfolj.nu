@@ -1,7 +1,7 @@
 /* Portföljen v2: tidningens kärna.
    Läser window.SNAPSHOT (../data.js) och skriver tidningen: rubriker, ingress, I korthet, faktakollen och graferna.
    Inga sidoeffekter vid laddning: sidorna anropar Tidning.forsta(), Tidning.positionssida() eller Tidning.metod().
-   Bobbo OS-vyn (../v2-brutal/) använder samma rubrikmotor och samma grafer i sin egen uniform.
+   Den privata vyn (../v2-brutal/) använder samma rubrikmotor och samma grafer i sin egen uniform.
    Vyn räknar inget som påverkar ett beslut: sådant kommer färdigt ur datan. Det vyn härleder är presentation:
    procentenheter, solfjäderns form mellan i dag och tolv månader (ändpunkterna är datans kvantiler), och portföljens
    försprång i procentenheter för publikläget.
@@ -132,22 +132,24 @@ const atWeeklyEdge = p => { const w = regW(p); return !!(w && w.channel.dir === 
 const hasOpt = p => { const o = p.oiret || {}; return !o.err && !!o.quantiles_12m && ok(o.er) && ok(o.sigma) && ok(o.target_12m); };
 const approxMonths = o => { const m = /löptid ([\d.]+) år/.exec(o.approx || ''); return m ? Math.round(parseFloat(m[1]) * 12) : 6; };
 const outside = o => !!(o.evidence && /^UTANFÖR/i.test(o.evidence));
-/* ================= bloggen (publikläget): senaste händelsen, nivåerna Bilel följer och målet =================
-   Publikt visas bara det bloggen säger: senaste händelsen, nivåerna Bilel följer som prisnivåer utan namn, och målet ur
-   optionerna. Varje publik väg nedan styrs av pub(), inte av att fälten saknas, så att konceptets publikläge (full data)
-   och den publika sajten (avskalad data, bygg-publik.py) skriver exakt samma sak. */
+/* ================= bloggen (publikläget): senaste händelsen, tankarna, nivåerna och riktkursen =================
+   Publikt visas bara det bloggen säger: senaste händelsen, tankarna per innehav, nivåerna som namnlösa prisnivåer i
+   grafen, och riktkursen ur optionspriserna. Sajten talar som "vi" och nämner ingen person. Varje publik väg nedan styrs
+   av pub(), inte av att fälten saknas, så att konceptets publikläge (full data) och den publika sajten (avskalad data,
+   bygg-publik.py) skriver exakt samma sak. */
 const BLOGG = (root.PORTFOLJ_BLOGG && root.PORTFOLJ_BLOGG.innehav) || {};
 const senaste = p => BLOGG[p.id] || null;
 const senasteText = p => { const b = senaste(p); return b ? L(b.sv, b.en) : null; };
+const tankar = p => ((BLOGG[p.id] || {}).tankar || []).filter(t => t && t.datum && t.sv).slice().sort((a, b) => b.datum.localeCompare(a.datum));
 function watched(p) {
   let v = (p.nivaer || []).map(x => x.level);
   return [...new Set(v.filter(ok).map(x => Math.round(x * 100) / 100))].sort((a, b) => b - a);
 }
 const levelsText = p => { const w = watched(p); return w.length ? w.map(px).join(L(' och ', ' and ')) + ' ' + ccyWord(p.chart_ccy) + (p.chart !== p.held ? ' (' + p.chart + ')' : '') : '—'; };
 const malTal = p => (hasOpt(p) ? Math.round(p.oiret.target_12m) : null);
-/* målet som belopp, i hela tal ("222 dollar"); money() visar två decimaler under 1 000 */
+/* riktkursen som belopp, i hela tal ("222 dollar"); money() visar två decimaler under 1 000 */
 const malBelopp = p => (malTal(p) === null ? '—' : en() ? p.chart_ccy + NB + num(malTal(p), 0) : num(malTal(p), 0) + NB + (CCYW[p.chart_ccy] || p.chart_ccy));
-/* varför ett mål ligger utanför studiens bevis: en ETF (Koreafonden) eller en aktie utanför S&P 500 (Siemens Energy) */
+/* varför en riktkurs ligger utanför studiens bevis: en ETF (Koreafonden) eller en aktie utanför S&P 500 (Siemens Energy) */
 const isEtf = o => /ETF/.test(o.evidence || '');
 function malNot(p) {
   const o = p.oiret || {}, bits = [];
@@ -158,7 +160,9 @@ function malNot(p) {
   if (outside(o)) bits.push(isEtf(o) ? L('ETF, utanför studiens bevis', "ETF, outside the study's evidence") : L('utanför studiens bevis', "outside the study's evidence"));
   return bits.join(', ');
 }
-const malText = p => (malTal(p) === null ? L('inget mål: inga optioner hos datakällan', 'no target: no options at the data source') : num(malTal(p), 0) + ' ' + ccyWord(p.chart_ccy));
+const malText = p => (malTal(p) === null ? L('ingen riktkurs: inga optioner hos datakällan', 'no price target: no options at the data source') : num(malTal(p), 0) + ' ' + ccyWord(p.chart_ccy));
+/* avståndet från dagens kurs till riktkursen, ur den oavrundade riktkursen (samma tal som grafens etikett) */
+const tillRikt = p => (hasOpt(p) ? pctS(p.oiret.er) : '—');
 const leadWord = () => (P.ret >= P.msci_ret ? L('före', 'ahead of') : L('efter', 'behind'));
 const ccyWord = c => (en() ? c : (CCYW[c] || c));
 function oiNote(o, shortForm) {
@@ -195,22 +199,58 @@ const edDate = ed => (ed === 'kvall' ? ASOF : nextWeekday(ASOF));
 const listNames = arr => { const n = arr.map(nm); return n.length < 2 ? n.join('') : n.slice(0, -1).join(', ') + L(' och ', ' and ') + n[n.length - 1]; };
 
 /* ================= maskinen skriver ================= */
-/* --- publikt: om avkastningen, försprånget och händelserna, aldrig om regler --- */
-function headlinePub(ed) {
-  const lead = Math.abs(P.ret - P.msci_ret) * 100;
-  const s = L('portföljen ' + num(lead, 1) + ' procentenheter ' + leadWord() + ' världsindex', 'the portfolio ' + num(lead, 1) + ' percentage points ' + leadWord() + ' the world index');
-  const mv = maxBy(POS, p => Math.abs(p.day_local));
-  if (ed === 'kvall' && Math.abs(mv.day_local) >= 0.02) return L(nm(mv) + (mv.day_local > 0 ? ' steg ' : ' föll ') + pctU(Math.abs(mv.day_local)), cap(prose(mv)) + (mv.day_local > 0 ? ' rises ' : ' falls ') + pctU(Math.abs(mv.day_local))) + ', ' + s;
-  return cap(s);
+/* --- publikt: om händelserna, avkastningen och försprånget, aldrig om regler --- */
+/* Huvudrubriken (2026-10-05): den viktiga händelse som ligger närmast upplagans dag, bakåt eller framåt, enligt E-A-R
+   och kalendern. Bakåt: bloggens senaste-händelse per innehav (rapportens mottagande, ett räntebesked, ett makrosläpp)
+   med sin egen handskrivna rubrik, högst 30 dagar gammal. Framåt: kalenderns rapporter, från upplagans dag. Lika nära:
+   det som redan hänt, sedan det tyngre innehavet. Dagens kursrörelser blir aldrig huvudrubrik; de är brus. Utan någon
+   händelse: försprånget mot världsindex. Allt räknas från upplagans dag, aldrig från läsarens klocka. */
+const dagar = (a, b) => Math.round((D(b) - D(a)) / 864e5);  // dagar från a till b
+const MAX_BAKAT = 30;
+function nyheten(ed) {
+  const dag = edDate(ed), kand = [];
+  POS.forEach(p => { const b = senaste(p); if (b && b.rubrik && b.datum && b.datum <= dag && dagar(b.datum, dag) <= MAX_BAKAT) kand.push({ typ: 'blogg', p, avst: dagar(b.datum, dag), b }); });
+  events().filter(e => e.d >= dag).forEach(e => kand.push({ typ: 'kal', p: e.p, avst: dagar(dag, e.d), e }));
+  kand.sort((x, y) => x.avst - y.avst || (x.typ === 'blogg' ? 0 : 1) - (y.typ === 'blogg' ? 0 : 1) || y.p.weight - x.p.weight);
+  return kand[0] || null;
 }
+const dLM = s => { const t = D(s), m = MONL[state.lang][t.getUTCMonth()]; return en() ? m + ' ' + t.getUTCDate() : t.getUTCDate() + ' ' + m; };
+/* kalenderns datum kommer från Yahoo och är ibland bolagens uppskattning, inte ett fastställt datum: därav "väntas" */
+function kalRubrik(e, dag) {
+  const n = dagar(dag, e.d), vem = evName(e);
+  const nar = n === 0 ? L('i dag', 'today') : n === 1 ? L('i morgon', 'tomorrow') : n < 7 ? L('på ' + wd(e.d), 'on ' + wd(e.d)) : L(dLM(e.d), 'on ' + dLM(e.d));
+  return L(vem + ' väntas rapportera ' + nar, vem + ' is expected to report ' + nar);
+}
+function headlinePub(ed) {
+  const n = nyheten(ed);
+  if (n) return n.typ === 'blogg' ? L(n.b.rubrik.sv, n.b.rubrik.en || n.b.rubrik.sv) : kalRubrik(n.e, edDate(ed));
+  const lead = Math.abs(P.ret - P.msci_ret) * 100;
+  return cap(L('portföljen ' + num(lead, 1) + ' procentenheter ' + leadWord() + ' världsindex', 'the portfolio ' + num(lead, 1) + ' percentage points ' + leadWord() + ' the world index'));
+}
+/* Ingressen knyter rubrikens händelse till portföljen (innehavets vikt), sedan läget mot världsindex och nästa rapport. */
 function ledePub(ed) {
-  const top = maxBy(POS, p => p.pnl_sek), ev = events()[0];
-  const s1 = L('Målet är att slå världsindex. Portföljen har gett ' + pctS(P.ret) + ' på vad köpen kostade, och samma insats i MSCI World ' + pctS(P.msci_ret) + '.',
-    'The aim is to beat the world index. The portfolio has made ' + pctS(P.ret) + ' on what the purchases cost, and the same money in MSCI World ' + pctS(P.msci_ret) + '.');
-  const s2 = P.pnl_sek > 0 && top.pnl_sek > 0 ? L(nm(top) + ' står för ' + pctU(top.pnl_sek / P.pnl_sek, 0) + ' av vinsten.', cap(prose(top)) + ' accounts for ' + pctU(top.pnl_sek / P.pnl_sek, 0) + ' of the gain.') : '';
+  const top = maxBy(POS, p => p.pnl_sek), n = nyheten(ed), dag = edDate(ed);
+  const share = P.pnl_sek > 0 && top.pnl_sek > 0 ? pctU(top.pnl_sek / P.pnl_sek, 0) : null;
+  let s0 = '', topSagd = false;
+  if (n) {
+    const p = n.p, w = pctU(p.weight, 0), storst = p === BYW[0];
+    if (n.typ === 'kal' && n.e.inner) s0 = L(evName(n.e) + ' ingår i ' + nm(p) + ', som väger ' + w + ' i portföljen.', evName(n.e) + ' is held through ' + prose(p) + ', which is ' + w + ' of the portfolio.');
+    else if (storst && p === top && share) { s0 = L(nm(p) + ' är portföljens största innehav, ' + w + ', och står för ' + share + ' av vinsten.', cap(prose(p)) + " is the portfolio's largest holding, " + w + ', and accounts for ' + share + ' of the gain.'); topSagd = true; }
+    else if (storst) s0 = L(nm(p) + ' är portföljens största innehav, ' + w + '.', cap(prose(p)) + " is the portfolio's largest holding, " + w + '.');
+    else s0 = L(nm(p) + ' väger ' + w + ' i portföljen.', cap(prose(p)) + ' is ' + w + ' of the portfolio.');
+  }
+  const s1 = n
+    ? L('Målet är att slå världsindex: portföljen har gett ' + pctS(P.ret) + ' på vad köpen kostade, och samma insats i MSCI World ' + pctS(P.msci_ret) + '.',
+      'The aim is to beat the world index: the portfolio has made ' + pctS(P.ret) + ' on what the purchases cost, and the same money in MSCI World ' + pctS(P.msci_ret) + '.')
+    : L('Målet är att slå världsindex. Portföljen har gett ' + pctS(P.ret) + ' på vad köpen kostade, och samma insats i MSCI World ' + pctS(P.msci_ret) + '.',
+      'The aim is to beat the world index. The portfolio has made ' + pctS(P.ret) + ' on what the purchases cost, and the same money in MSCI World ' + pctS(P.msci_ret) + '.');
+  const s2 = share && !topSagd ? L(nm(top) + ' står för ' + share + ' av vinsten.', cap(prose(top)) + ' accounts for ' + share + ' of the gain.') : '';
   const s3 = ed === 'kvall' ? L('Portföljen ' + (P.day_ret >= 0 ? 'steg ' : 'föll ') + pctU(Math.abs(P.day_ret)) + ' ' + onDay(ASOF) + '.', 'The portfolio ' + (P.day_ret >= 0 ? 'rose ' : 'fell ') + pctU(Math.abs(P.day_ret)) + ' ' + onDay(ASOF) + '.') : '';
-  const s4 = ev ? L('Nästa rapport: ' + evName(ev) + ' ' + dS(ev.d) + (ev.inner ? ', i ' + nm(ev.p) : '') + '.', 'Next report: ' + evName(ev) + ' on ' + dS(ev.d) + (ev.inner ? ', held through ' + prose(ev.p) : '') + '.') : '';
-  return [s1, s2, s3, s4].filter(Boolean).join(' ');
+  // nästa rapport, men inte den som redan är rubriken
+  const rubrikRapport = n && n.typ === 'kal' ? n.e : null;
+  const ev = events().filter(e => e.d >= dag && !(rubrikRapport && e.d === rubrikRapport.d && e.t === rubrikRapport.t))[0];
+  const s4 = ev ? L((rubrikRapport ? 'Därefter: ' : 'Nästa väntade rapport: ') + evName(ev) + ' ' + dS(ev.d) + (ev.inner ? ', i ' + nm(ev.p) : '') + '.', (rubrikRapport ? 'After that: ' : 'Next expected report: ') + evName(ev) + ' on ' + dS(ev.d) + (ev.inner ? ', held through ' + prose(ev.p) : '') + '.') : '';
+  return [s0, s1, s2, s3, s4].filter(Boolean).join(' ');
 }
 function briefPub(ed) {
   const ev = events(), lead = L('Mot MSCI World: ' + ppS(P.ret - P.msci_ret) + ' sedan köpen.', 'Against MSCI World: ' + ppS(P.ret - P.msci_ret) + ' since the purchases.');
@@ -232,17 +272,17 @@ function dekPub(p) {
   const where = p.chart !== p.held ? L(' (' + p.chart + ')', ' (' + p.chart + ')') : '';
   const s1 = L('Kursen ' + money(p.chart_px, p.chart_ccy) + where + ', ' + pctS(p.ret) + ' sedan köpet och ' + ppS(p.ret - p.msci_ret) + ' mot samma insats i MSCI World.',
     'The price is ' + money(p.chart_px, p.chart_ccy) + where + ', ' + pctS(p.ret) + ' since purchase and ' + ppS(p.ret - p.msci_ret) + ' against the same money in MSCI World.');
-  const s2 = malTal(p) === null ? L(' Datakällan har inga optioner för aktien, så inget mål kan räknas.', ' The data source has no options for the stock, so no target can be calculated.')
+  const s2 = malTal(p) === null ? L(' Datakällan har inga optioner för aktien, så ingen riktkurs kan räknas.', ' The data source has no options for the stock, so no price target can be calculated.')
     : L(' Optionerna säger ' + malBelopp(p) + ' om ett år.', ' The options say ' + malBelopp(p) + ' in a year.');
   return s1 + s2;
 }
 function chartCaptionPub(p) {
   const o = p.oiret || {}, parts = [L('Så läser du grafen. ', 'How to read the chart. ')];
-  parts.push(L('Kursen är ' + px(p.chart_px) + '. De streckade linjerna är nivåer Bilel följer: ' + levelsText(p) + '. ', 'The price is ' + px(p.chart_px) + '. The dashed lines are levels Bilel follows: ' + levelsText(p) + '. '));
+  parts.push(L('Kursen är ' + px(p.chart_px) + '. De streckade linjerna är nivåer vi följer: ' + levelsText(p) + '. ', 'The price is ' + px(p.chart_px) + '. The dashed lines are levels we follow: ' + levelsText(p) + '. '));
   if (hasOpt(p)) {
     const q = o.quantiles_12m;
-    parts.push(L('Till höger om i dag visar solfjädern vad optionspriserna säger om nästa år: hälften av utfallen mellan ' + px(q.q25) + ' och ' + px(q.q75) + ' och det förväntade priset ' + px(o.target_12m) + ', avrundat till målet ' + num(malTal(p), 0) + '.',
-      'Right of today, the fan shows what option prices say about the next year: half of outcomes between ' + px(q.q25) + ' and ' + px(q.q75) + ' and the expected price ' + px(o.target_12m) + ', rounded to the target ' + num(malTal(p), 0) + '.'));
+    parts.push(L('Till höger om i dag visar solfjädern vad optionspriserna säger om nästa år: hälften av utfallen mellan ' + px(q.q25) + ' och ' + px(q.q75) + ' och det förväntade priset ' + px(o.target_12m) + ', avrundat till riktkursen ' + num(malTal(p), 0) + '.',
+      'Right of today, the fan shows what option prices say about the next year: half of outcomes between ' + px(q.q25) + ' and ' + px(q.q75) + ' and the expected price ' + px(o.target_12m) + ', rounded to the price target ' + num(malTal(p), 0) + '.'));
     if (malNot(p)) parts.push(L(' Obs: ' + malNot(p) + '.', ' Note: ' + malNot(p) + '.'));
   } else parts.push(L('Till höger om i dag visar bandet hur långt vanlig svängning brukar nå på 21 handelsdagar. Det är ingen prognos; datakällan har inga optioner för aktien.', 'Right of today, the band shows how far ordinary swings usually reach in 21 trading days. It is not a forecast; the data source has no options for the stock.'));
   if (p.chart !== p.held) parts.push(L(' Grafen visar ' + p.chart + ' i dollar; innehavet är ' + short(p.held) + ' i euro.', ' The chart shows ' + p.chart + ' in dollars; the holding is ' + short(p.held) + ' in euros.'));
@@ -257,9 +297,9 @@ function lede(ed) {
   if (pub()) return ledePub(ed);
 }
 const byline = () => LV('Skriven av maskinen ur kurserna och dina positionskort. Dina egna ord står i kursiv.',
-  'Skriven av maskinen ur kurserna. Bilels egna ord står i kursiv.',
+  'Talen räknas ur marknadsdata; texterna om innehaven skrivs för hand.',
   'Written by the machine from prices and your position cards. Your own words are in italics.',
-  "Written by the machine from prices. Bilel's own words are in italics.");
+  'The numbers come from market data; the texts about the holdings are written by hand.');
 
 function briefLabel(ed) {
   const day = edDate(ed);
@@ -280,8 +320,8 @@ function storyHeadline(p) {
   return L(n + ' ' + pctS(p.ret) + ' sedan köpet', n + ' ' + pctS(p.ret) + ' since purchase');
 }
 function heldLine(p) {
-  if (p.chart !== p.held) return L('Ägs som ' + short(p.held) + ' på ' + exchange(p) + ' i euro; nivåer och mål gäller ' + p.chart + ' i dollar.',
-    'Held as ' + short(p.held) + ' on ' + exchange(p) + ' in euros; levels and target apply to ' + p.chart + ' in dollars.');
+  if (p.chart !== p.held && pub()) return L('Ägs som ' + short(p.held) + ' på ' + exchange(p) + ' i euro; grafen och riktkursen gäller ' + p.chart + ' i dollar.',
+    'Held as ' + short(p.held) + ' on ' + exchange(p) + ' in euros; the chart and the price target apply to ' + p.chart + ' in dollars.');
   return L(exchange(p) + ', ' + ccyWord(p.ccy) + '. Köpt ' + dSY(p.entry_date) + '.', exchange(p) + ', ' + p.ccy + '. Bought ' + dSY(p.entry_date) + '.');
 }
 function dek(p) {
@@ -340,11 +380,11 @@ function checks(p) {
     out.push({ v: L('– Beskrivning', '– Description'), c: 'na', parts: [bits.join(' ')] });
   }
   if (hasOpt(p) && pub()) {
-    out.push({ v: L('Uträknat', 'Calculated'), c: 'na', parts: [L('Optionerna: förväntat pris om ett år ' + px(o.target_12m) + ', avrundat till målet ' + num(malTal(p), 0) + (malNot(p) ? ' (' + malNot(p) + ')' : '') + '.',
-      'The options: expected price in a year ' + px(o.target_12m) + ', rounded to the target ' + num(malTal(p), 0) + (malNot(p) ? ' (' + malNot(p) + ')' : '') + '.')] });
+    out.push({ v: L('Uträknat', 'Calculated'), c: 'na', parts: [L('Optionerna: förväntat pris om ett år ' + px(o.target_12m) + ', avrundat till riktkursen ' + num(malTal(p), 0) + (malNot(p) ? ' (' + malNot(p) + ')' : '') + '.',
+      'The options: expected price in a year ' + px(o.target_12m) + ', rounded to the price target ' + num(malTal(p), 0) + (malNot(p) ? ' (' + malNot(p) + ')' : '') + '.')] });
   }
   else {
-    out.push({ v: L('– Går inte', '– Not possible'), c: 'na', parts: [L('Datakällan har inga optioner för ' + p.chart + ', så inget optionsmål kan räknas.', 'The data source has no options for ' + p.chart + ', so no option target can be calculated.')] });
+    out.push({ v: L('– Går inte', '– Not possible'), c: 'na', parts: [L('Datakällan har inga optioner för ' + p.chart + ', så ingen riktkurs ur optionerna kan räknas.', 'The data source has no options for ' + p.chart + ', so no option price target can be calculated.')] });
   }
   return out;
 }
@@ -584,7 +624,7 @@ function chartLegend(host, p) {
   add(candle(), L('Kurs, dag (ihålig upp, fylld ned)', 'Price, daily (hollow up, filled down)'));
   add(line(sk.sma52, 1.5), 'SMA 52'); add(line(sk.sma252, 1.5), 'SMA 252');
   if (regD(p)) add(box(sk.kanal), LV('Kanal från ditt ankare, ±2σ', 'Kanal från ankaret, ±2σ', 'Channel from your anchor, ±2σ', 'Channel from the anchor, ±2σ'));
-  if (pub()) { if (watched(p).length) add(line(sk.regel, 1.2, '5 4'), L('Nivåer Bilel följer', 'Levels Bilel follows')); }
+  if (pub()) { if (watched(p).length) add(line(sk.regel, 1.2, '5 4'), L('Nivåer vi följer', 'Levels we follow')); }
   if (hasOpt(p)) {
     add(box(sk.optUt, sk.optIn), L('Optionerna om 12 mån: hälften och 90 % av utfallen', 'Options in 12 months: half and 90% of outcomes'));
     const s = sv('svg', { width: 12, height: 12 }); sv('path', { d: 'M6 0.5 L11.5 6 L6 11.5 L0.5 6 Z', fill: sk.opt }, s); add(s, L('Förväntat pris', 'Expected price'));
@@ -610,7 +650,7 @@ function positionChart(host, p, opt) {
   // kanalens värde per handelsdag: rak linje från start_line vid start till line i dag
   const chanVal = (r, i) => { const a = allD.findIndex(d => d >= r.channel.start); if (a < 0) return null; const span = Math.max(1, total - 1 - a); return { a, v: r.channel.start_line + (r.channel.line - r.channel.start_line) * (i - a) / span }; };
   const wTime = r => { const ta = D(r.channel.start).getTime(), tN = D(allD[total - 1]).getTime(); return i => r.channel.start_line + (r.channel.line - r.channel.start_line) * (D(allD[i]).getTime() - ta) / (tN - ta); };
-  // y-skalan bär barerna, SMA, nivåerna, målet, dagskanalen och solfjäderns mittersta hälft
+  // y-skalan bär barerna, SMA, nivåerna, riktkursen, dagskanalen och solfjäderns mittersta hälft
   const vals = [];
   for (let i = off; i < total; i++) [s.d_high[i], s.d_low[i]].forEach(v => ok(v) && vals.push(v));
   // SMA bär skalan bara nära kursen; en SMA 252 långt under (en aktie som dubblats) ritas men klipps
@@ -621,14 +661,14 @@ function positionChart(host, p, opt) {
   if (fan) vals.push(fan.q12.q25, fan.q12.q75, o.target_12m); else vals.push(noise(2, T), noise(-2, T));
   const lo = Math.min(...vals) * 0.965, hi = Math.max(...vals) * 1.035;
   const Y = v => m.t + (H - m.t - m.b) * (1 - (Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)));
-  let aria = p.chart + ': ' + L('kurs ', 'price ') + px(S0) + (lvPub.length ? ', ' + L('nivåer Bilel följer ', 'levels Bilel follows ') + lvPub.map(px).join(', ') : '') + (fan ? ', ' + L('mål om ett år ', 'target in a year ') + num(malTal(p), 0) : '');
+  let aria = p.chart + ': ' + L('kurs ', 'price ') + px(S0) + (lvPub.length ? ', ' + L('nivåer vi följer ', 'levels we follow ') + lvPub.map(px).join(', ') : '') + (fan ? ', ' + L('riktkurs om ett år ', 'price target in a year ') + num(malTal(p), 0) : '');
   const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': aria }, host);
   const id = 'pc' + Math.random().toString(36).slice(2, 7), defs = sv('defs', {}, svg);
   const cp = sv('clipPath', { id: id + 'c' }, defs); sv('rect', { x: m.l, y: m.t, width: pw, height: H - m.t - m.b }, cp);
   const plot = sv('g', { 'clip-path': `url(#${id}c)` }, svg);
   sv('rect', { x: r1(m.l + histW), y: m.t, width: r1(futW), height: H - m.t - m.b, fill: sk.zon }, svg);
   // rutnät och axel till höger
-  // axeltal som skulle hamna under en skylt (nivå, mål, förväntat, kurs) ritas inte
+  // axeltal som skulle hamna under en skylt (nivå, riktkurs, förväntat, kurs) ritas inte
   let plateVals = [fan ? o.target_12m : null, S0];
   const plateYs = plateVals.filter(ok).map(Y);
   const step = niceStep(hi - lo, small ? 4 : 6);
@@ -728,7 +768,7 @@ function positionChart(host, p, opt) {
     const xe = xf(1), ye = Y(o.target_12m);
     sv('path', { d: `M${r1(xe)} ${r1(ye - 7)} l7 7 l-7 7 l-7 -7 z`, fill: sk.opt, stroke: sk.paper, 'stroke-width': 2 }, svg);
     plates.push({ y: ye, text: pub() ? num(malTal(p), 0) : px(o.target_12m), color: sk.opt });
-    const lab = pub() ? L('mål ', 'target ') + num(malTal(p), 0) + ', ' + pctS(o.er) + (malNot(p) ? ' (' + malNot(p) + ')' : '') : L('förväntat ', 'expected ') + px(o.target_12m) + ', ' + pctS(o.er) + ' (' + oiNote(o, true) + ')';
+    const lab = pub() ? L('riktkurs ', 'price target ') + num(malTal(p), 0) + ', ' + pctS(o.er) + (malNot(p) ? ' (' + malNot(p) + ')' : '') : L('förväntat ', 'expected ') + px(o.target_12m) + ', ' + pctS(o.er) + ' (' + oiNote(o, true) + ')';
     halo(stext(svg, sk, xe - 12, ye - 10, lab, { 'text-anchor': 'end', 'font-size': 11, 'font-weight': 600, fill: sk.ink }), sk);
     const q = fan.q12;
     if (Y(q.q95) < m.t + 4) stext(svg, sk, xe - 4, m.t + 12, L('5 % chans över ', '5% chance above ') + pxq(q.q95) + ' ↑', { 'text-anchor': 'end', 'font-size': 10.5 });
@@ -834,15 +874,15 @@ function teaser(p) {
   if (pub()) { const st = senasteText(p); if (st) a.append(el('p', 'senaste', st)); }
   const sp = el('div', 'sparkholder'); sp.dataset.id = p.id; a.append(sp);
   const foot = el('div', 'storyfoot');
-  if (pub()) foot.append(el('span', null, L('Mot MSCI World ', 'vs MSCI World ') + ppS(p.ret - p.msci_ret)), el('span', null, L('Mål ', 'Target ') + (malTal(p) === null ? '—' : num(malTal(p), 0))));
+  if (pub()) foot.append(el('span', null, L('Mot MSCI World ', 'vs MSCI World ') + ppS(p.ret - p.msci_ret)), el('span', null, L('Riktkurs ', 'Price target ') + (malTal(p) === null ? '—' : num(malTal(p), 0))));
   a.append(foot);
   const f = el('dl', 'facts'), o = p.oiret || {};
   const add = (dt, nodes) => { f.append(el('dt', null, dt)); const dd = el('dd'); put(dd, nodes); f.append(dd); };
   add(L('Vikt', 'Weight'), [pctU(p.weight, 0) + (pub() ? '' : ', ' + kr(p.value_sek))]);
   add(L('Resultat', 'Result'), [el('span', p.ret >= 0 ? 'pos' : 'neg', pctS(p.ret)), el('span', 'sub2', L(' kurs ', ' price ') + pctS(p.asset_ret) + L(', valuta ', ', currency ') + pctS(p.fx_ret) + divTxt(p, ', '))]);
   if (pub()) {
-    add(L('Nivåer', 'Levels'), [levelsText(p)]);
-    add(L('Mål', 'Target'), [malText(p)].concat(malNot(p) ? [el('br'), el('span', 'sub2', malNot(p))] : []));
+    // faktalistan är börslistan i smala fönster: samma kolumner, och nivåerna står bara i positionens graf
+    add(L('Riktkurs', 'Price target'), [malText(p)].concat(hasOpt(p) ? [', ' + tillRikt(p) + L(' från i dag', ' from today')] : []).concat(malNot(p) ? [el('br'), el('span', 'sub2', malNot(p))] : []));
     add(L('Rapport', 'Report'), [calText(p)]);
     a.append(f);
     return a;
@@ -871,9 +911,9 @@ function markets(host) {
 }
 function borslistanPub(host, subHost) {
   host.textContent = '';
-  subHost.textContent = L('Ordnad efter vikt. Målet är optionernas förväntade pris om tolv månader enligt studien från 2026, avrundat; se Om portföljen.',
-    "Ordered by weight. The target is the options' expected price in twelve months per the 2026 study, rounded; see About the portfolio.");
-  const cols = [[L('Innehav', 'Holding'), 'l'], [L('Vikt', 'Weight')], [L('Sedan köp', 'Since purchase')], [L('Mot MSCI World', 'vs MSCI World')], [L('Mål om ett år', 'Target in a year')], [L('Nivåer Bilel följer', 'Levels Bilel follows'), 'l'], [L('Rapport', 'Report')]];
+  subHost.textContent = L('Ordnad efter vikt. Riktkursen är optionsprisernas förväntade pris om ett år (studien från 2026), avrundat; avståndet räknas från dagens kurs.',
+    "Ordered by weight. The price target is the expected price in a year implied by option prices (the 2026 study), rounded; the distance is from today's price.");
+  const cols = [[L('Innehav', 'Holding'), 'l'], [L('Vikt', 'Weight')], [L('Sedan köp', 'Since purchase')], [L('Mot MSCI World', 'vs MSCI World')], [L('Riktkurs om ett år', 'Price target in a year')], [L('Till riktkursen', 'To price target')], [L('Rapport', 'Report')]];
   const thead = el('thead'), hr = el('tr'); cols.forEach(([h, c]) => { const th = el('th', c || null, h); th.scope = 'col'; hr.append(th); }); thead.append(hr); host.append(thead);
   const body = el('tbody');
   BYW.forEach(p => {
@@ -886,7 +926,7 @@ function borslistanPub(host, subHost) {
     td([el('span', p.ret >= 0 ? 'pos' : 'neg', pctS(p.ret)), el('span', 's', L('kurs ', 'price ') + sgn(p.asset_ret * 100, 1) + L(', valuta ', ', currency ') + sgn(p.fx_ret * 100, 1) + (ok(p.div_ret) && p.div_ret > 0 ? L(', utd. ', ', div. ') + sgn(p.div_ret * 100, 1) : ''))]);
     td([ppS(p.ret - p.msci_ret), el('span', 's', 'MSCI ' + pctS(p.msci_ret))]);
     td(malTal(p) === null ? ['—', el('span', 's', L('inga optioner', 'no options'))] : [num(malTal(p), 0), el('span', 's', malNot(p) || ccyWord(p.chart_ccy))]);
-    td([watched(p).map(px).join(', ') || '—', el('span', 's', ccyWord(p.chart_ccy) + (p.chart !== p.held ? ', ' + p.chart : ''))], 'l');
+    td(hasOpt(p) ? [tillRikt(p), el('span', 's', L('från ', 'from ') + px(p.chart_px) + (p.chart !== p.held ? ' (' + p.chart + ')' : ''))] : ['—']);
     const cal = (p.calendar || []).filter(e => e.date).slice().sort((x, y) => x.date.localeCompare(y.date));
     const inner = cal.filter(e => e.ticker !== p.chart && e.ticker !== p.held);
     td(cal.length ? [dS(cal[0].date)].concat(inner.length ? [el('span', 's', inner.map((e, i) => (CAL[e.ticker] || e.ticker) + (i ? ' ' + dS(e.date) : '')).join(', '))] : []) : ['—']);
@@ -927,7 +967,7 @@ function whenFonts(fn) { if (fontsReady) { fn(); return; } const go = () => { fo
 function onResize(fn) { let t; root.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(fn, 150); }); }
 function setRedraw(fn) { redraw = fn; if (!resizeHooked) { resizeHooked = true; onResize(() => redraw && redraw()); } }
 
-/* notisen: syftet, en gång per webbläsare (publikt, Bobbos "en notis som folk får en gång"). Den räknas som sedd när
+/* notisen: syftet, en gång per webbläsare (publikt, "en notis som folk får en gång"). Den räknas som sedd när
    den visas; under samma sidvisning står den kvar vid omritning (språk, upplaga) tills Okej. Utan lagring visas den
    varje gång. */
 let notisLage = null;  // null: inte avgjort; 'visas': visas under den här sidvisningen; 'stangd': stängd eller redan sedd
@@ -988,7 +1028,17 @@ function drawFront() {
   document.querySelectorAll('.sparkholder').forEach(h => spark(h, pos(h.dataset.id)));
 }
 
-/* positionssidan, publikt: senaste händelsen och målet i rutorna under faktakollen */
+/* positionssidan, publikt: tankarna (bloggen), sedan senaste händelsen och riktkursen i rutorna under */
+function tankarRuta(host, p) {
+  host.textContent = '';
+  host.append(el('h2', null, L('Tankar', 'Thoughts')));
+  const t = tankar(p);
+  if (!t.length) { host.append(el('p', 'empty', L('— inget skrivet ännu', '— nothing written yet'))); return; }
+  t.forEach(x => {
+    const a = el('article', 'post'), tm = el('time', null, dSY(x.datum)); tm.setAttribute('datetime', x.datum);
+    a.append(tm, el('p', null, L(x.sv, x.en || x.sv))); host.append(a);
+  });
+}
 function senasteRuta(pl, p) {
   const b = senaste(p);
   if (!b) { pl.append(el('p', 'empty', L('— inget skrivet ännu', '— nothing written yet'))); return; }
@@ -1005,12 +1055,12 @@ function optPub(ob, marks, p, o) {
   if (o.approx) marks.append(el('span', 'mark warn', L('bara ca ' + approxMonths(o) + ' mån optioner', 'only about ' + approxMonths(o) + ' months of options')));
   if (outside(o)) marks.append(el('span', 'mark warn', isEtf(o) ? L('ETF utanför studiens bevis', "ETF outside the study's evidence") : L('utanför studiens bevis', "outside the study's evidence")));
   ob.append(marks);
-  if (o.kalla === 'Eurex') ob.append(el('p', null, L('Optionerna handlas på Eurex i Frankfurt, inte hos datakällan. Målet räknas ur Eurex dagliga avräkningspriser med samma metod som för de amerikanska aktierna, och med euroräntan ' + pctU(o.rf, 2) + ' som priserna själva ger. Studien prövade bara aktier i S&P 500.',
-    'The options trade on Eurex in Frankfurt, not at the data source. The target is calculated from Eurex daily settlement prices with the same method as the US stocks, using the euro rate of ' + pctU(o.rf, 2) + ' that the prices themselves imply. The study only tested S&P 500 stocks.')));
-  if (o.kalla === 'EWY') ob.append(el('p', null, L('Fondens egna optioner har för få bud för metoden. Målet räknas därför ur optionerna på EWY, en annan fond med samma koreanska storbolag: de två har rört sig nästan exakt lika det senaste året (korrelation 0,997). Studien prövade bara aktier i S&P 500, inte fonder.',
-    "The fund's own options have too few bids for the method. The target is therefore calculated from the options on EWY, another fund holding the same large Korean companies: the two have moved almost exactly alike over the past year (correlation 0.997). The study only tested S&P 500 stocks, not funds.")));
-  ob.append(el('p', null, L('Målet är ' + malBelopp(p) + ': optionernas förväntade pris om ett år, ' + px(o.target_12m) + ', avrundat. Det är ' + pctS(o.er) + ' från dagens kurs. Medianen är ' + px(o.median_12m) + '.',
-    'The target is ' + malBelopp(p) + ": the options' expected price in a year, " + px(o.target_12m) + ', rounded. That is ' + pctS(o.er) + " from today's price. The median is " + px(o.median_12m) + '.')));
+  if (o.kalla === 'Eurex') ob.append(el('p', null, L('Optionerna handlas på Eurex i Frankfurt, inte hos datakällan. Riktkursen räknas ur Eurex dagliga avräkningspriser med samma metod som för de amerikanska aktierna, och med euroräntan ' + pctU(o.rf, 2) + ' som priserna själva ger. Studien prövade bara aktier i S&P 500.',
+    'The options trade on Eurex in Frankfurt, not at the data source. The price target is calculated from Eurex daily settlement prices with the same method as the US stocks, using the euro rate of ' + pctU(o.rf, 2) + ' that the prices themselves imply. The study only tested S&P 500 stocks.')));
+  if (o.kalla === 'EWY') ob.append(el('p', null, L('Fondens egna optioner har för få bud för metoden. Riktkursen räknas därför ur optionerna på EWY, en annan fond med samma koreanska storbolag: de två har rört sig nästan exakt lika det senaste året (korrelation 0,997). Studien prövade bara aktier i S&P 500, inte fonder.',
+    "The fund's own options have too few bids for the method. The price target is therefore calculated from the options on EWY, another fund holding the same large Korean companies: the two have moved almost exactly alike over the past year (correlation 0.997). The study only tested S&P 500 stocks, not funds.")));
+  ob.append(el('p', null, L('Riktkursen är ' + malBelopp(p) + ': det förväntade priset om ett år enligt optionspriserna, ' + px(o.target_12m) + ', avrundat. Det är ' + pctS(o.er) + ' från dagens kurs. Medianen är ' + px(o.median_12m) + '.',
+    'The price target is ' + malBelopp(p) + ': the expected price in a year according to option prices, ' + px(o.target_12m) + ', rounded. That is ' + pctS(o.er) + " from today's price. The median is " + px(o.median_12m) + '.')));
   const tb = el('table', 't'); const h = el('tr'); [L('Utfall om ett år', 'Outcome in a year'), '5 %', '25 %', '50 %', '75 %', '95 %'].forEach(x => h.append(el('th', null, x))); tb.append(h);
   const r = el('tr'); r.append(el('td', null, L('Kurs', 'Price'))); ['q5', 'q25', 'q50', 'q75', 'q95'].forEach(k => r.append(el('td', null, px(o.quantiles_12m[k])))); tb.append(r); ob.append(tb);
   const src = el('p', 'muted'); src.append(document.createTextNode(L('Metod: Martin, Rodenkirchen, Wagner och Wang (2026); ', 'Method: Martin, Rodenkirchen, Wagner and Wang (2026); ')));
@@ -1047,46 +1097,34 @@ function positionssida() {
   fig(L('Vikt', 'Weight'), pctU(p.weight, 1), L('andel av risken ', 'share of risk ') + pctU(((P.risk || {}).contrib || {})[p.id], 0));
   fig(L('Mot MSCI World', 'vs MSCI World'), pub() ? ppS(p.ret - p.msci_ret) : krS(p.excess_sek), L('MSCI World samma dag ', 'MSCI World from the same day ') + pctS(p.msci_ret));
   if (pub()) {
-    fig(L('Mål om ett år', 'Target in a year'), malBelopp(p), malTal(p) === null ? L('inga optioner hos datakällan', 'no options at the data source') : (malNot(p) || L('optionerna, studien från 2026', 'the options, the 2026 study')));
+    fig(L('Riktkurs om ett år', 'Price target in a year'), malBelopp(p), malTal(p) === null ? L('inga optioner hos datakällan', 'no options at the data source') : (malNot(p) || L('ur optionspriserna', 'from option prices')));
     fig(L('Nästa rapport', 'Next report'), calText(p), L('ur kalendern', 'from the calendar'));
   }
   chartLegend($('legend'), p);
   $('caption').textContent = chartCaption(p);
-  // hans ord
-  const yd = $('yours'); yd.textContent = '';
-  $('yours-h').textContent = LV('Du skriver', 'Bilel skriver', 'You write', 'Bilel writes');
-  const qv = v => (v ? '”' + v + '”' : null);
-  const add = (k, v, plain) => { yd.append(el('dt', null, k)); const dd = el('dd'); if (v === null || v === undefined || v === '') dd.append(el('span', 'empty', L('— ej ifyllt', '— not filled in'))); else if (plain) dd.append(el('span', 'plain', v)); else dd.textContent = v; yd.append(dd); };
-  const rw = regW(p), rdd = regD(p);
-  if (pub()) {
-    $('yours-h').textContent = L('Det Bilel tittar på', 'What Bilel is watching');
-    add(L('Nivåer', 'Levels'), levelsText(p), true);
-    if (p.sma_W) add(L('SMA vecka', 'SMA weekly'), qv(p.sma_W));
-    if (p.sma_D) add(L('SMA dag', 'SMA daily'), qv(p.sma_D));
-    if (p.sma_comment) add(L('Om medelvärdena', 'On the averages'), qv(p.sma_comment));
-    if (rw) add(L('Ankare vecka', 'Weekly anchor'), px(rw.anchor) + ', ' + dSY(rw.anchor_date), true);
-    if (rdd && (!rw || Math.abs(rdd.anchor - rw.anchor) > 1e-9)) add(L('Ankare dag', 'Daily anchor'), px(rdd.anchor) + ', ' + dSY(rdd.anchor_date), true);
-  }
-  $('check-h').textContent = L('Faktakollen: maskinen prövade orden mot kurserna', 'The fact check: the machine tested the words against the prices');
-  const ol = $('check'); ol.textContent = '';
-  checks(p).forEach(c => { const li = el('li'); li.append(el('span', 'verdict ' + c.c, c.v)); const t = el('span'); partsTo(t, c.parts); li.append(t); ol.append(li); });
-  // rutan under faktakollen
+  // tankarna (publikt, bloggformat) i stället för kortets fält och faktakollen (privat)
+  const yd = $('yours'), ol = $('check'), tk = $('tankar');
+  yd.textContent = ''; ol.textContent = ''; $('yours-h').textContent = ''; $('check-h').textContent = '';
+  $('twocol').classList.toggle('blogg', pub());
+  tk.hidden = !pub(); tk.textContent = '';
+  if (pub()) tankarRuta(tk, p);
+  // rutan under tankarna (publikt) eller faktakollen (privat)
   $('plan-h').textContent = L('Senaste', 'Latest');
   const pl = $('plan-body'); pl.textContent = '';
   if (pub()) senasteRuta(pl, p);
   // optionerna
-  $('opt-h').textContent = pub() ? L('Målet om ett år', 'The target in a year') : L('Optionerna om ett år', 'The options in a year');
+  $('opt-h').textContent = pub() ? L('Riktkursen om ett år, ur optionspriserna', 'The price target in a year, from option prices') : L('Optionerna om ett år', 'The options in a year');
   const ob = $('opt-body'); ob.textContent = '';
   const o = p.oiret || {};
   const marks = el('div', 'marks');
-  if (!hasOpt(p)) { marks.append(el('span', 'mark warn', L('inga optioner', 'no options'))); ob.append(marks, el('p', null, L('Datakällan har inga optioner för ' + p.chart + ', så maskinen visar vanlig svängning i stället för ett mål.', 'The data source has no options for ' + p.chart + ', so the machine shows ordinary swings instead of a target.'))); }
+  if (!hasOpt(p)) { marks.append(el('span', 'mark warn', L('inga optioner', 'no options'))); ob.append(marks, el('p', null, L('Datakällan har inga optioner för ' + p.chart + ', så maskinen visar vanlig svängning i stället för en riktkurs.', 'The data source has no options for ' + p.chart + ', so the machine shows ordinary swings instead of a price target.'))); }
   else if (pub()) optPub(ob, marks, p, o);
   // talen bakom grafen
   const tt = $('chart-table'); tt.textContent = '';
   const rows = [[L('Stängning ', 'Close ') + dS(p.asof), px(p.chart_px)], ['SMA 52 / SMA 252 ' + L('(dag)', '(daily)'), px(p.sma_d['52'].v) + ' / ' + px(p.sma_d['252'].v)]];
-  if (pub()) { if (watched(p).length) rows.push([L('Nivåer Bilel följer', 'Levels Bilel follows'), watched(p).map(px).join(', ')]); }
+  if (pub()) { if (watched(p).length) rows.push([L('Nivåer vi följer', 'Levels we follow'), watched(p).map(px).join(', ')]); }
   if (regD(p)) { const c = regD(p).channel; rows.push([L('Kanalen i dag: nedre, mitt, övre', 'Channel today: lower, mid, upper'), px(c.lower) + ', ' + px(c.line) + ', ' + px(c.upper)]); }
-  if (hasOpt(p)) { rows.push([L('Optionerna om ett år: 5, 25, 50, 75, 95 %', 'Options in a year: 5, 25, 50, 75, 95%'), ['q5', 'q25', 'q50', 'q75', 'q95'].map(k => px(o.quantiles_12m[k])).join(', ')]); rows.push([L('Förväntat pris om ett år', 'Expected price in a year'), px(o.target_12m) + ' (' + (pub() ? (malNot(p) || (o.metod === 'yta' ? L('volatilitetsytan', 'volatility surface') : L('lösenpriser med bud', 'strikes with bids'))) : oiNote(o, true)) + ')']); if (pub()) rows.push([L('Målet, avrundat', 'The target, rounded'), num(malTal(p), 0)]); }
+  if (hasOpt(p)) { rows.push([L('Optionerna om ett år: 5, 25, 50, 75, 95 %', 'Options in a year: 5, 25, 50, 75, 95%'), ['q5', 'q25', 'q50', 'q75', 'q95'].map(k => px(o.quantiles_12m[k])).join(', ')]); rows.push([L('Förväntat pris om ett år', 'Expected price in a year'), px(o.target_12m) + ' (' + (pub() ? (malNot(p) || (o.metod === 'yta' ? L('volatilitetsytan', 'volatility surface') : L('lösenpriser med bud', 'strikes with bids'))) : oiNote(o, true)) + ')']); if (pub()) rows.push([L('Riktkursen, avrundad', 'The price target, rounded'), num(malTal(p), 0)]); }
   const th = el('tr'); th.append(el('th', null, L('Mått', 'Measure')), el('th', null, L('Värde', 'Value'))); tt.append(th);
   rows.forEach(([a, b]) => { const tr = el('tr'); tr.append(el('td', null, a), el('td', null, b)); tt.append(tr); });
   $('chart-sum').textContent = L('Talen bakom grafen', 'The numbers behind the chart');
@@ -1107,7 +1145,7 @@ function metod() {
   const content = root.TidningMetod ? root.TidningMetod(api) : [];
   const toc = $('toc'); toc.textContent = '';
   $('m-h1').textContent = pub() ? L('Om portföljen', 'About the portfolio') : L('Så räknas talen', 'How the numbers are made');
-  $('m-ingress').textContent = L('Ett öppet försök att slå världsindex. Här står vad sidan mäter, hur målen räknas och vad den inte visar.', 'An open attempt to beat the world index. This page says what the site measures, how the targets are calculated and what it does not show.');
+  $('m-ingress').textContent = L('Ett öppet försök att slå världsindex. Här står vad sidan mäter, hur riktkurserna räknas och vad den inte visar.', 'An open attempt to beat the world index. This page says what the site measures, how the price targets are calculated and what it does not show.');
   // kolumnerna överst (publikt): en kort text per huvudsektion och en länk ned till den
   const oldKol = document.querySelector('.om-kol'); if (oldKol) oldKol.remove();
   if (pub()) {

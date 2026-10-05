@@ -1,8 +1,8 @@
 # Portföljen
 
-Ett öppet försök att slå världsindex MSCI World med fem positioner. Varje köp jämförs med samma insats i MSCI World samma dag. Sidan skrivs av en maskin ur kurserna, och Bilel skriver ibland själv.
+Ett öppet försök att slå världsindex MSCI World med fem positioner. Varje köp jämförs med samma insats i MSCI World samma dag. Talen räknas av en maskin ur marknadsdata; texterna och tankarna om innehaven skrivs för hand.
 
-Prototyp med kurser från stängningen fredag 2 oktober 2026. Sajten visar procent, procentenheter, vikter, kurser, nivåerna Bilel följer, kursmål ur optionspriser och den senaste händelsen per innehav. Den publicerar inga kronbelopp, antal, kontouppgifter eller regler för köp och försäljning: datan innehåller bara det som sidorna visar.
+Prototyp med kurser från stängningen fredag 2 oktober 2026. Sajten visar procent, procentenheter, vikter, kurser, nivåerna vi följer, riktkurser ur optionspriser, den senaste händelsen och korta tankar per innehav. Den publicerar inga kronbelopp, antal, kontouppgifter eller regler för köp och försäljning: datan innehåller bara det som sidorna visar.
 
 Filerna byggs av ett skript i ett privat arbetsarkiv; ändra dem inte för hand.
 

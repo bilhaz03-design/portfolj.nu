@@ -7,7 +7,7 @@
 <meta name="robots" content="noindex">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Positionen · Portföljen</title>
-<meta name="description" content="En position i Portföljen: senaste händelsen, grafen med optionernas solfjäder, nivåerna och målet.">
+<meta name="description" content="En position i Portföljen: grafen med optionernas solfjäder, tankarna, senaste händelsen och riktkursen.">
 <script>
 (function () {
   var u = null;
@@ -46,9 +46,10 @@
       <details class="numbers"><summary id="chart-sum"></summary><table class="t" id="chart-table"></table></details>
     </figure>
     <section class="figs" id="figs" aria-label="Positionen i siffror"></section>
-    <section class="twocol">
+    <section class="twocol" id="twocol">
       <div class="yours"><h2 id="yours-h"></h2><dl id="yours"></dl></div>
       <div class="check"><h2 id="check-h"></h2><ol id="check"></ol></div>
+      <div class="tankar" id="tankar" hidden></div>
     </section>
     <section class="lowerpos">
       <div class="plan"><h2 id="plan-h"></h2><div class="plan-body" id="plan-body"></div></div>
