@@ -213,6 +213,22 @@ function evList(list) {
   if (parts.length < 2) return parts.join('');
   return parts.slice(0, -1).join(', ') + L(' och ', ' and ') + parts[parts.length - 1];
 }
+/* datum som bolaget inte själv har bekräftat (calendar[].estimate) märks efter listan, i en egen mening */
+function estNot(list) {
+  const est = list.filter(e => e.est);
+  if (!est.length) return '';
+  if (est.length === list.length) return list.length === 1 ? L('Datumet är preliminärt.', 'The date is not confirmed.') : L('Datumen är preliminära.', 'The dates are not confirmed.');
+  const n = est.map(evName), lista = n.length < 2 ? n.join('') : n.slice(0, -1).join(', ') + L(' och ', ' and ') + n[n.length - 1];
+  return est.length === 1 ? L('Datumet för ' + lista + ' är preliminärt.', 'The date for ' + lista + ' is not confirmed.') : L('Datumen för ' + lista + ' är preliminära.', 'The dates for ' + lista + ' are not confirmed.');
+}
+const medNot = list => { const t = estNot(list); return t ? ' ' + t : ''; };
+/* börslistans rapportkolumn: alla datum preliminära ger "prel. datum"; blandat namnger de preliminära (2026-10-06) */
+function kalPrel(cal) {
+  const pe = cal.filter(e => e.estimate === true);
+  if (!pe.length) return '';
+  if (pe.length === cal.length) return L('prel. datum', pe.length > 1 ? 'prelim. dates' : 'prelim. date');
+  return L('prel. datum: ', 'prelim. date: ') + pe.map(e => CAL[e.ticker] || e.ticker).join(L(' och ', ' and '));
+}
 const edDate = ed => (ed === 'kvall' ? ASOF : nextWeekday(ASOF));
 const listNames = arr => { const n = arr.map(nm); return n.length < 2 ? n.join('') : n.slice(0, -1).join(', ') + L(' och ', ' and ') + n[n.length - 1]; };
 
@@ -256,6 +272,8 @@ function ledePub(ed) {
     else if (storst && p === top && share) { s0 = L(nm(p) + ' är portföljens största innehav, ' + w + ', och står för ' + share + ' av vinsten.', cap(prose(p)) + " is the portfolio's largest holding, " + w + ', and accounts for ' + share + ' of the gain.'); topSagd = true; }
     else if (storst) s0 = L(nm(p) + ' är portföljens största innehav, ' + w + '.', cap(prose(p)) + " is the portfolio's largest holding, " + w + '.');
     else s0 = L(nm(p) + ' väger ' + w + ' i portföljen.', cap(prose(p)) + ' is ' + w + ' of the portfolio.');
+    // rubriken är en kommande rapport vars datum bolaget inte har bekräftat: ingressen säger det först (2026-10-06)
+    if (n.typ === 'kal' && n.e.est) s0 = L('Datumet är preliminärt. ', 'The date is not confirmed. ') + s0;
   }
   const s1 = n
     ? L('Målet är att slå världsindex: portföljen har gett ' + pctS(P.ret) + ' på vad köpen kostade, och samma insats i MSCI World ' + pctS(P.msci_ret) + '.',
@@ -267,7 +285,7 @@ function ledePub(ed) {
   // nästa rapport, men inte den som redan är rubriken
   const rubrikRapport = n && n.typ === 'kal' ? n.e : null;
   const ev = events().filter(e => e.d >= dag && !(rubrikRapport && e.d === rubrikRapport.d && e.t === rubrikRapport.t))[0];
-  const s4 = ev ? L((rubrikRapport ? 'Därefter: ' : 'Nästa väntade rapport: ') + evName(ev) + ' ' + dS(ev.d) + (ev.inner ? ', i ' + nm(ev.p) : '') + '.', (rubrikRapport ? 'After that: ' : 'Next expected report: ') + evName(ev) + ' on ' + dS(ev.d) + (ev.inner ? ', held through ' + prose(ev.p) : '') + '.') : '';
+  const s4 = ev ? L((rubrikRapport ? 'Därefter: ' : 'Nästa väntade rapport: ') + evName(ev) + ' ' + dS(ev.d) + (ev.est ? ' (prel.)' : '') + (ev.inner ? ', i ' + nm(ev.p) : '') + '.', (rubrikRapport ? 'After that: ' : 'Next expected report: ') + evName(ev) + ' on ' + dS(ev.d) + (ev.est ? ' (prelim.)' : '') + (ev.inner ? ', held through ' + prose(ev.p) : '') + '.') : '';
   return [s0, s1, s2, s3, s4].filter(Boolean).join(' ');
 }
 function briefPub() {
@@ -275,7 +293,7 @@ function briefPub() {
   const ev = events(), lead = L('Mot MSCI World: ' + ppS(P.ret - P.msci_ret) + ' sedan köpen.', 'Against MSCI World: ' + ppS(P.ret - P.msci_ret) + ' since the purchases.');
   const mv = maxBy(POS, p => Math.abs(p.day_local));
   const s1 = L('Största rörelsen var ' + nm(mv) + ', ' + pctS(mv.day_local) + '. Hela portföljen ' + pctS(P.day_ret) + '.', 'The biggest move was ' + prose(mv) + ', ' + pctS(mv.day_local) + '. The whole portfolio ' + pctS(P.day_ret) + '.');
-  const s3 = ev.length ? L('Nästa rapporter: ', 'Next reports: ') + evList(ev.slice(0, 4)) + '.' : L('Inga rapportdatum i datan.', 'No report dates in the data.');
+  const s3 = ev.length ? L('Nästa rapporter: ', 'Next reports: ') + evList(ev.slice(0, 4)) + '.' + medNot(ev.slice(0, 4)) : L('Inga rapportdatum i datan.', 'No report dates in the data.');
   return [s1, lead, s3];
 }
 function dekPub(p) {
@@ -976,7 +994,7 @@ function borslistanPub(host, subHost) {
     td(hasOpt(p) ? [tillRikt(p), el('span', 's', L('från ', 'from ') + px(p.chart_px) + (p.chart !== p.held ? ' (' + p.chart + ')' : ''))] : ['—']);
     const cal = (p.calendar || []).filter(e => e.date).slice().sort((x, y) => x.date.localeCompare(y.date));
     const inner = cal.filter(e => e.ticker !== p.chart && e.ticker !== p.held);
-    const prel = cal.length && cal[0].estimate === true ? L('prel. datum', 'prelim. date') : '';
+    const prel = kalPrel(cal);
     td(cal.length ? [dS(cal[0].date)].concat(inner.length || prel ? [el('span', 's', [inner.map((e, i) => (CAL[e.ticker] || e.ticker) + (i ? ' ' + dS(e.date) : '')).join(', '), prel].filter(Boolean).join(', '))] : []) : ['—']);
     body.append(tr);
   });
