@@ -616,7 +616,7 @@ function bars(host) {
 function barsNote() {
   return pub()
     ? L('Bidrag till försprånget i procentenheter av hela insatsen. Summa ' + ppS(P.excess_sek / P.cost_sek) + '. Sålda positioner ingår inte.', 'Contribution to the lead in percentage points of the whole stake. Total ' + ppS(P.excess_sek / P.cost_sek) + '. Sold positions are not included.')
-    : L('Samma kronor som varje köp kostade, köpta samma dag i MSCI World (URTH med utdelningar, i kronor). Summa ' + krS(P.excess_sek) + '. Sålda positioner ingår inte.', 'The amount each purchase cost, invested the same day in MSCI World (URTH with dividends, converted to SEK). Total ' + krS(P.excess_sek) + '. Sold positions are not included.');
+    : L('Samma kronor som varje köp kostade, köpta samma dag i MSCI World (MSCI World Net, i kronor). Summa ' + krS(P.excess_sek) + '. Sålda positioner ingår inte.', 'The amount each purchase cost, invested the same day in MSCI World (MSCI World Net, converted to SEK). Total ' + krS(P.excess_sek) + '. Sold positions are not included.');
 }
 
 /* --- gnistan i puffarna --- */
