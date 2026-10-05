@@ -164,8 +164,12 @@ const malTal = p => (hasOpt(p) ? Math.round(p.oiret.target_12m) : null);
 const malBelopp = p => (malTal(p) === null ? '—' : en() ? p.chart_ccy + NB + num(malTal(p), 0) : num(malTal(p), 0) + NB + (CCYW[p.chart_ccy] || p.chart_ccy));
 /* varför en riktkurs ligger utanför studiens bevis: en ETF (Koreafonden) eller en aktie utanför S&P 500 (Siemens Energy) */
 const isEtf = o => /ETF/.test(o.evidence || '');
+/* kvällskörningen (2026-10-05) bär riktkursen från senaste beräkningen tills den räknas om; är den äldre än upplagan
+   står beräkningsdagen bredvid, så att ingen läser den som dagens */
+const malDatum = o => (o && o.datum && o.datum < ASOF ? o.datum : null);
 function malNot(p) {
   const o = p.oiret || {}, bits = [];
+  if (malDatum(o)) bits.push(L('räknad ' + dS(o.datum), 'calculated ' + dS(o.datum)));
   if (o.kalla === 'Eurex') bits.push(L('optioner från Eurex', 'options from Eurex'));
   if (o.kalla === 'EWY') bits.push(L('optioner på EWY', 'options on EWY'));
   if (o.approx) bits.push(L('optioner bara till ca ' + approxMonths(o) + ' mån', 'options only to about ' + approxMonths(o) + ' mo'));
@@ -181,6 +185,7 @@ const ccyWord = c => (en() ? c : (CCYW[c] || c));
 function oiNote(o, shortForm) {
   if (!o || o.err) return '';
   const bits = [shortForm ? L('prel.', 'prelim.') : L('preliminär', 'preliminary')];
+  if (malDatum(o)) bits.push(L('räknad ' + dS(o.datum), 'calculated ' + dS(o.datum)));
   if (o.approx) bits.push(shortForm ? L(approxMonths(o) + ' mån uppräknat', approxMonths(o) + ' mo annualised') : L('bara ca ' + approxMonths(o) + ' mån optioner, uppräknat', 'only about ' + approxMonths(o) + ' months of options, annualised'));
   if (o.kalla === 'Eurex') bits.push(shortForm ? 'Eurex' : L('Eurex avräkningspriser', 'Eurex settlement prices'));
   if (o.kalla === 'EWY') bits.push(shortForm ? 'EWY' : L('optionerna på EWY', 'the options on EWY'));
@@ -190,7 +195,7 @@ function oiNote(o, shortForm) {
 }
 function events() {
   const ev = [];
-  POS.forEach(p => (p.calendar || []).filter(c => c.date).forEach(c => ev.push({ d: c.date.slice(0, 10), t: c.ticker, p, inner: c.ticker !== p.chart && c.ticker !== p.held })));
+  POS.forEach(p => (p.calendar || []).filter(c => c.date).forEach(c => ev.push({ d: c.date.slice(0, 10), t: c.ticker, p, inner: c.ticker !== p.chart && c.ticker !== p.held, est: c.estimate === true })));
   return ev.filter(e => e.d >= ASOF).sort((a, b) => a.d.localeCompare(b.d));
 }
 const evName = e => CAL[e.t] || e.t;
@@ -278,7 +283,8 @@ function dekPub(p) {
   const s1 = L('Kursen ' + money(p.chart_px, p.chart_ccy) + where + ', ' + pctS(p.ret) + ' sedan köpet och ' + ppS(p.ret - p.msci_ret) + ' mot samma insats i MSCI World.',
     'The price is ' + money(p.chart_px, p.chart_ccy) + where + ', ' + pctS(p.ret) + ' since purchase and ' + ppS(p.ret - p.msci_ret) + ' against the same money in MSCI World.');
   const s2 = malTal(p) === null ? L(' Datakällan har inga optioner för aktien, så ingen riktkurs kan räknas.', ' The data source has no options for the stock, so no price target can be calculated.')
-    : L(' Optionerna säger ' + malBelopp(p) + ' om ett år.', ' The options say ' + malBelopp(p) + ' in a year.');
+    : L(' Optionerna säger ' + malBelopp(p) + ' om ett år' + (malDatum(p.oiret) ? ' (räknat ' + dS(p.oiret.datum) + ')' : '') + '.',
+      ' The options say ' + malBelopp(p) + ' in a year' + (malDatum(p.oiret) ? ' (calculated ' + dS(p.oiret.datum) + ')' : '') + '.');
   return s1 + s2;
 }
 function chartCaptionPub(p) {
@@ -833,7 +839,10 @@ function chartCaption(p) {
 }
 
 /* ================= sidornas delar ================= */
+/* sidfotens länkar och inställningspanelen ritar om sidan med samma funktion som toppradens knappar */
+let andraLage = null, panelLyssnar = false;
 function controls(host, onChange) {
+  andraLage = onChange;
   // knappen som hade fokus får tillbaka det efter omritningen (tangentbordet tappar inte platsen)
   const prevK = document.activeElement && host.contains(document.activeElement) ? document.activeElement.dataset.k : null;
   host.textContent = '';
@@ -851,7 +860,30 @@ function controls(host, onChange) {
   pb.append(el('i'), document.createTextNode(L('Publik', 'Public')));
   pb.title = L('Publik upplaga: döljer kronor och antal, visar procent och vikter', 'Public edition: hides SEK amounts and quantities, shows percentages and weights');
   pb.addEventListener('click', () => onChange({ publik: !state.publik }));
-  host.append(g1, g2);
+  if (pub()) {
+    // sajten (2026-10-05 kväll): ingen synlig rad med val; en liten knapp öppnar en panel med färgläge och språk, och
+    // samma val står som länkar i sidfoten
+    const oppen = host.dataset.oppen === '1';
+    const knapp = el('button', 'inst-knapp'); knapp.type = 'button'; knapp.dataset.k = 'installningar';
+    knapp.setAttribute('aria-expanded', String(oppen)); knapp.setAttribute('aria-controls', 'inst-panel');
+    knapp.setAttribute('aria-label', L('Visning och språk', 'Display and language')); knapp.title = L('Visning och språk', 'Display and language');
+    knapp.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/></svg>';
+    const panel = el('div', 'inst-panel'); panel.id = 'inst-panel'; panel.hidden = !oppen;
+    panel.setAttribute('role', 'group'); panel.setAttribute('aria-label', L('Visning och språk', 'Display and language'));
+    const rad = (lab, g) => { const r = el('div', 'rad'); r.append(el('span', null, lab), g); return r; };
+    panel.append(rad(L('Färgläge', 'Colour mode'), g1), rad(L('Språk', 'Language'), g2));
+    const satt = v => { host.dataset.oppen = v ? '1' : ''; panel.hidden = !v; knapp.setAttribute('aria-expanded', String(v)); };
+    knapp.addEventListener('click', e => { e.stopPropagation(); satt(panel.hidden); });
+    panel.addEventListener('click', e => e.stopPropagation());
+    if (!panelLyssnar) {
+      panelLyssnar = true;
+      const stang = () => { const h = document.getElementById('ctrls'), p = document.getElementById('inst-panel'), k = h && h.querySelector('.inst-knapp');
+        if (!p || p.hidden) return; h.dataset.oppen = ''; p.hidden = true; if (k) k.setAttribute('aria-expanded', 'false'); return k; };
+      document.addEventListener('click', stang);
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') { const k = stang(); if (k) k.focus(); } });
+    }
+    host.append(knapp, panel);
+  } else host.append(g1, g2);
   if (!PUBLIK_ENDAST) host.append(pb);
   if (prevK) { const b = host.querySelector('[data-k="' + prevK + '"]'); if (b) b.focus(); }
 }
@@ -875,7 +907,7 @@ function strip(host) {
     cell(cap(wd(ASOF)), pctS(P.day_ret), L('på dagen', 'on the day'), P.day_ret >= 0 ? 'pos' : 'neg');
     cell(L('Mot MSCI World', 'vs MSCI World'), ppS(P.ret - P.msci_ret), L('index gav ' + pctS(P.msci_ret) + ' på samma insats', 'the index made ' + pctS(P.msci_ret) + ' on the same money'));
     const ev = events()[0];
-    cell(L('Nästa rapport', 'Next report'), ev ? dS(ev.d) : '—', ev ? evName(ev) + (ev.inner ? L(' (i ' + nm(ev.p) + ')', ' (in the ' + nm(ev.p) + ')') : '') : '');
+    cell(L('Nästa rapport', 'Next report'), ev ? dS(ev.d) : '—', ev ? evName(ev) + (ev.inner ? L(' (i ' + nm(ev.p) + ')', ' (in the ' + nm(ev.p) + ')') : '') + (ev.est ? L(', prel. datum', ', prelim. date') : '') : '');
     const big = BYW[0]; cell(L('Största vikt', 'Largest weight'), nm(big) + ' ' + pctU(big.weight, 0), L(POS.length + ' innehav', POS.length + ' holdings'));
     cell(L('Risk', 'Risk'), pctU(R.vol_ann, 0), L('volatilitet per år, beta ' + num(R.beta_msci, 2) + ' mot MSCI World', 'volatility per year, beta ' + num(R.beta_msci, 2) + ' to MSCI World'));
     return;
@@ -905,11 +937,11 @@ function teaser(p) {
 }
 function calText(p) {
   const c = (p.calendar || []).filter(e => e.date).slice().sort((a, b) => a.date.localeCompare(b.date));
-  return c.length ? c.map(e => dS(e.date) + (e.ticker !== p.chart && e.ticker !== p.held ? ' ' + (CAL[e.ticker] || e.ticker) : '')).join(', ') : '—';
+  return c.length ? c.map(e => dS(e.date) + (e.estimate === true ? L(' (prel.)', ' (prelim.)') : '') + (e.ticker !== p.chart && e.ticker !== p.held ? ' ' + (CAL[e.ticker] || e.ticker) : '')).join(', ') : '—';
 }
 function calendarList(host) {
   host.textContent = '';
-  events().forEach(e => { const li = el('li'); const t = el('time', null, dS(e.d)); t.setAttribute('datetime', e.d); li.append(t, el('span', null, L('Rapport, ', 'Report, ') + evName(e) + (e.inner ? L(' (i ' + nm(e.p) + ')', ' (in the ' + nm(e.p) + ')') : ''))); host.append(li); });
+  events().forEach(e => { const li = el('li'); const t = el('time', null, dS(e.d)); t.setAttribute('datetime', e.d); li.append(t, el('span', null, L('Rapport, ', 'Report, ') + evName(e) + (e.inner ? L(' (i ' + nm(e.p) + ')', ' (in the ' + nm(e.p) + ')') : '') + (e.est ? L(', datum preliminärt', ', date not confirmed') : ''))); host.append(li); });
 }
 function markets(host) {
   host.textContent = '';
@@ -944,7 +976,8 @@ function borslistanPub(host, subHost) {
     td(hasOpt(p) ? [tillRikt(p), el('span', 's', L('från ', 'from ') + px(p.chart_px) + (p.chart !== p.held ? ' (' + p.chart + ')' : ''))] : ['—']);
     const cal = (p.calendar || []).filter(e => e.date).slice().sort((x, y) => x.date.localeCompare(y.date));
     const inner = cal.filter(e => e.ticker !== p.chart && e.ticker !== p.held);
-    td(cal.length ? [dS(cal[0].date)].concat(inner.length ? [el('span', 's', inner.map((e, i) => (CAL[e.ticker] || e.ticker) + (i ? ' ' + dS(e.date) : '')).join(', '))] : []) : ['—']);
+    const prel = cal.length && cal[0].estimate === true ? L('prel. datum', 'prelim. date') : '';
+    td(cal.length ? [dS(cal[0].date)].concat(inner.length || prel ? [el('span', 's', [inner.map((e, i) => (CAL[e.ticker] || e.ticker) + (i ? ' ' + dS(e.date) : '')).join(', '), prel].filter(Boolean).join(', '))] : []) : ['—']);
     body.append(tr);
   });
   host.append(body);
@@ -976,6 +1009,12 @@ function footer(host) {
     ? L('Datans ålder: stängning ' + wd(ASOF) + ' ' + dSY(ASOF) + ', byggd ' + nar + '. Prototypdata ur Yahoo Finance, MSCI, Eurex, Cboe och FRED.', 'Data age: close ' + wd(ASOF) + ' ' + dSY(ASOF) + ', built ' + nar + '. Prototype data from Yahoo Finance, MSCI, Eurex, Cboe and FRED.')
     : L('Datans ålder: stängning ' + wd(ASOF) + ' ' + dSY(ASOF) + ', uppdaterad ' + nar + '. Data ur Yahoo Finance, MSCI, Eurex, Cboe och FRED.', 'Data age: close ' + wd(ASOF) + ' ' + dSY(ASOF) + ', updated ' + nar + '. Data from Yahoo Finance, MSCI, Eurex, Cboe and FRED.');
   const right = el('span'); const a = el('a', null, pub() ? L('Om portföljen: syftet och metoden', 'About the portfolio: the aim and the method') : L('Så räknas talen: metoden', 'How the numbers are made: the method')); a.href = href('metod.html'); right.append(a);
+  if (pub()) {
+    // färgläge och språk också här nere, som länkar (toppens panel är gömd tills någon öppnar den)
+    const val = (text, k, patch) => { const b = el('button', 'fotval', text); b.type = 'button'; b.dataset.k = k; if (patch.lang) b.lang = patch.lang; b.addEventListener('click', () => andraLage && andraLage(patch)); return b; };
+    right.append(document.createTextNode(' · '), state.tema === 'mork' ? val(L('Ljust läge', 'Light mode'), 'fot-ljus', { tema: 'ljus' }) : val(L('Mörkt läge', 'Dark mode'), 'fot-mork', { tema: 'mork' }),
+      document.createTextNode(' · '), en() ? val('På svenska', 'fot-sv', { lang: 'sv' }) : val('In English', 'fot-en', { lang: 'en' }));
+  }
   host.append(left, right);
 }
 
@@ -1078,8 +1117,8 @@ function optPub(ob, marks, p, o) {
     'The options trade on Eurex in Frankfurt, not at the data source. The price target is calculated from Eurex daily settlement prices with the same method as the US stocks, using the euro rate of ' + pctU(o.rf, 2) + ' that the prices themselves imply. The study only tested S&P 500 stocks.')));
   if (o.kalla === 'EWY') ob.append(el('p', null, L('Fondens egna optioner har för få bud för metoden. Riktkursen räknas därför ur optionerna på EWY, en annan fond med samma koreanska storbolag: de två har rört sig nästan exakt lika det senaste året (korrelation 0,997). Studien prövade bara aktier i S&P 500, inte fonder.',
     "The fund's own options have too few bids for the method. The price target is therefore calculated from the options on EWY, another fund holding the same large Korean companies: the two have moved almost exactly alike over the past year (correlation 0.997). The study only tested S&P 500 stocks, not funds.")));
-  ob.append(el('p', null, L('Riktkursen är ' + malBelopp(p) + ': det förväntade priset om ett år enligt optionspriserna, ' + px(o.target_12m) + ', avrundat. Det är ' + pctS(o.er) + ' från dagens kurs. Medianen är ' + px(o.median_12m) + '.',
-    'The price target is ' + malBelopp(p) + ': the expected price in a year according to option prices, ' + px(o.target_12m) + ', rounded. That is ' + pctS(o.er) + " from today's price. The median is " + px(o.median_12m) + '.')));
+  ob.append(el('p', null, L('Riktkursen är ' + malBelopp(p) + ': det förväntade priset om ett år enligt optionspriserna' + (malDatum(o) ? ' ' + dS(o.datum) : '') + ', ' + px(o.target_12m) + ', avrundat. Det är ' + pctS(o.er) + ' från dagens kurs. Medianen är ' + px(o.median_12m) + '.',
+    'The price target is ' + malBelopp(p) + ': the expected price in a year according to option prices' + (malDatum(o) ? ' on ' + dS(o.datum) : '') + ', ' + px(o.target_12m) + ', rounded. That is ' + pctS(o.er) + " from today's price. The median is " + px(o.median_12m) + '.')));
   const tb = el('table', 't'); const h = el('tr'); [L('Utfall om ett år', 'Outcome in a year'), '5 %', '25 %', '50 %', '75 %', '95 %'].forEach(x => h.append(el('th', null, x))); tb.append(h);
   const r = el('tr'); r.append(el('td', null, L('Kurs', 'Price'))); ['q5', 'q25', 'q50', 'q75', 'q95'].forEach(k => r.append(el('td', null, px(o.quantiles_12m[k])))); tb.append(r); ob.append(tb);
   const src = el('p', 'muted'); src.append(document.createTextNode(L('Metod: Martin, Rodenkirchen, Wagner och Wang (2026); ', 'Method: Martin, Rodenkirchen, Wagner and Wang (2026); ')));

@@ -365,3 +365,21 @@ details.numbers table{margin-top:8px;max-width:760px}
   .om-kol > div,.om-kol > div:nth-child(3){border-left:0;padding-left:0;border-top:1px solid var(--hair)}
   .om-kol > div:first-child{border-top:0}
 }
+
+/* ---------- inställningarna (2026-10-05 kväll): en liten knapp i stället för raden, panelen öppnas vid klick ---------- */
+.ctrls{position:relative}
+.inst-knapp{all:unset;box-sizing:border-box;cursor:pointer;width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:var(--ink-3);border:1px solid transparent;transition:background-color .2s ease,color .2s ease,border-color .2s ease}
+.inst-knapp:hover,.inst-knapp[aria-expanded="true"]{color:var(--ink);border-color:var(--rule);background:var(--box)}
+.inst-knapp:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.inst-knapp svg{width:15px;height:15px;display:block}
+.inst-panel{position:absolute;right:0;top:calc(100% + 6px);z-index:30;background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:12px 14px;display:grid;gap:10px;min-width:232px;box-shadow:0 12px 32px rgba(0,0,0,.14);font-family:var(--sans)}
+.inst-panel[hidden]{display:none}
+.inst-panel .rad{display:flex;align-items:center;justify-content:space-between;gap:18px;font-size:12px;color:var(--ink-2)}
+.fotval{all:unset;cursor:pointer;text-decoration:underline;text-underline-offset:2px;color:inherit}
+.fotval:hover{color:var(--ink)}
+.fotval:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+@media (max-width:760px){
+  .topbar:has(.inst-knapp){flex-wrap:nowrap;align-items:flex-start}
+  .topbar:has(.inst-knapp) .tag{flex:1 1 auto;flex-basis:auto}
+  .topbar:has(.inst-knapp) .ctrls{justify-content:flex-end}
+}

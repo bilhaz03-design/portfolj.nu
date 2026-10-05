@@ -10,6 +10,8 @@ window.TidningMetod = function (T) {
      "kol" blir en kolumn överst på sidan. Konceptets privata metodsida nedan följer inte med till sajten. */
   if (pub()) {
     const R = P.risk || {}, oi = T.S.oiret_inputs || {};
+    /* kvällskörningens data (2026-10-05) räknar kronorna med Riksbankens dagliga kurser; prototypdatan med Yahoos */
+    const riksbanken = !!(((T.S.meta || {}).riktmarke || {}).valuta);
     return [
       { h: L('Syftet', 'The aim'),
         kol: L('Portföljen ska slå världsindex. Varje köp ställs mot samma insats i MSCI World samma dag, så skillnaden visar vad valen har gett utöver att bara äga fonden.',
@@ -29,8 +31,10 @@ window.TidningMetod = function (T) {
         kol: L('MSCI World Net direkt från MSCI, med utdelningarna återinvesterade, omräknat till kronor. Portföljens egna utdelningar räknas också in. Fondens avgift ingår inte.',
           'MSCI World Net straight from MSCI, with dividends reinvested, converted to SEK. The portfolio\'s own dividends are included too. The fund\'s fee is not.'),
         body: [
-          L('Varje köp jämförs med samma insats, samma dag, i MSCI World med utdelningarna återinvesterade: MSCI:s eget index MSCI World Net, omräknat till kronor med dollarkursen. Skillnaden är vad valen har gett utöver världsindex. I dag har portföljen gett ' + fmt.pctS(P.ret) + ' på vad köpen kostade, och samma insats i MSCI World ' + fmt.pctS(P.msci_ret) + '.',
-            'Each purchase is compared with the same money invested on the same day in MSCI World with dividends reinvested: MSCI\'s own MSCI World Net index, converted to SEK at the dollar rate. The difference is what the picks have added beyond the world index. Today the portfolio has made ' + fmt.pctS(P.ret) + ' on what the purchases cost, and the same money in MSCI World ' + fmt.pctS(P.msci_ret) + '.'),
+          L('Varje köp jämförs med samma insats, samma dag, i MSCI World med utdelningarna återinvesterade: MSCI:s eget index MSCI World Net, omräknat till kronor med ' + (riksbanken ? 'Riksbankens dollarkurs' : 'dollarkursen') + '. Skillnaden är vad valen har gett utöver världsindex. I dag har portföljen gett ' + fmt.pctS(P.ret) + ' på vad köpen kostade, och samma insats i MSCI World ' + fmt.pctS(P.msci_ret) + '.'
+              + (riksbanken ? ' Alla kronor räknas med Riksbankens dagliga valutakurser: köpdagens kurs för insatsen och dagens kurs för värdet och indexet, så att vem som helst kan räkna om talen.' : ''),
+            'Each purchase is compared with the same money invested on the same day in MSCI World with dividends reinvested: MSCI\'s own MSCI World Net index, converted to SEK at ' + (riksbanken ? 'the Riksbank\'s dollar rate' : 'the dollar rate') + '. The difference is what the picks have added beyond the world index. Today the portfolio has made ' + fmt.pctS(P.ret) + ' on what the purchases cost, and the same money in MSCI World ' + fmt.pctS(P.msci_ret) + '.'
+              + (riksbanken ? ' All SEK amounts use the Riksbank\'s daily exchange rates: the purchase day\'s rate for the cost and today\'s rate for the value and the index, so anyone can recompute the numbers.' : '')),
           L('Båda sidor räknar in utdelningar: indexet efter källskatt, portföljen med de utdelningar innehaven har gett efter köpet. MSCI World Net är indexet som fonden en svensk sparare köper, iShares Core MSCI World (IWDA), följer, och det räknas som portföljen: varje marknad på sin egen stängning. Fondens avgift på 0,20 % per år ingår inte. Bara nuvarande innehav ingår.',
             'Both sides include dividends: the index after withholding tax, the portfolio with the dividends its holdings have paid since purchase. MSCI World Net is the index tracked by the fund a Swedish saver buys, iShares Core MSCI World (IWDA), and it is calculated like the portfolio: each market at its own close. The fund\'s fee of 0.20% a year is not included. Only current holdings are included.'),
         ] },
