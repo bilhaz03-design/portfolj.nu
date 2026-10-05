@@ -17,8 +17,11 @@ window.TidningMetod = function (T) {
         body: [
           L('Portföljen följer ' + ordet(POS.length) + ' verkliga positioner: ' + nameList + '. Den jämförs hela tiden med det enklaste alternativet, en global indexfond. Slår den inte fonden över tid är fonden det bättre valet.',
             'Portföljen follows ' + ordet(POS.length) + ' real positions: ' + nameList + '. It is always compared with the simplest alternative, a global index fund. If it does not beat the fund over time, the fund is the better choice.'),
-          L('Talen räknas av en maskin ur marknadsdata; texterna och tankarna om innehaven skriver vi själva. Den här versionen är en prototyp med kurser från stängningen ' + fmt.wd(T.ASOF) + ' ' + fmt.dSY(T.ASOF) + '; uppdateringen två gånger om dagen kommer senare.',
-            'The numbers are calculated by a machine from market data; we write the texts and thoughts about the holdings ourselves. This version is a prototype with prices from the close on ' + fmt.wd(T.ASOF) + ', ' + fmt.dSY(T.ASOF) + '; updates twice a day will follow.'),
+          T.PROTOTYP
+            ? L('Talen räknas av en maskin ur marknadsdata; texterna och tankarna om innehaven skriver vi själva. Den här versionen är en prototyp med kurser från stängningen ' + fmt.wd(T.ASOF) + ' ' + fmt.dSY(T.ASOF) + '; snart uppdateras talen automatiskt varje vardagskväll efter stängningen.',
+              'The numbers are calculated by a machine from market data; we write the texts and thoughts about the holdings ourselves. This version is a prototype with prices from the close on ' + fmt.wd(T.ASOF) + ', ' + fmt.dSY(T.ASOF) + '; soon the numbers will update automatically every weekday evening after the close.')
+            : L('Talen räknas av en maskin ur marknadsdata och uppdateras automatiskt varje vardagskväll efter stängningen, senast med kurserna från ' + fmt.wd(T.ASOF) + ' ' + fmt.dSY(T.ASOF) + '. Texterna och tankarna om innehaven skriver vi själva.',
+              'The numbers are calculated by a machine from market data and update automatically every weekday evening after the close, most recently with prices from ' + fmt.wd(T.ASOF) + ', ' + fmt.dSY(T.ASOF) + '. We write the texts and thoughts about the holdings ourselves.'),
           L('En portfölj på fem positioner under några månader bevisar ingen förmåga att slå marknaden. Sidan visar försöket öppet, även när det går dåligt.',
             'A portfolio of five positions over a few months proves no ability to beat the market. The site shows the attempt openly, even when it goes badly.'),
         ] },

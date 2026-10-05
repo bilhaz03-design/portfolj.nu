@@ -1,6 +1,7 @@
-/* Portföljen v2: tidningen i två upplagor.
-   Morgonupplagan 09:00 är papper, kvällsupplagan 22:15 är natttryck. Samma raster, samma typsnitt och samma data;
-   bara ljuset byts. Färgerna i graferna har en uppgift var: röd = nivåerna, blå = målet, magenta = optionerna,
+/* Portföljen v2: tidningen i två färglägen (data-tema på html).
+   Ljust är papper, mörkt är natttryck. Samma raster, samma typsnitt och samma data; bara ljuset byts. Sajten har
+   ljust som förval och mörkt bakom växeln Ljust/Mörkt (2026-10-05); konceptet byter ljus med upplagan.
+   Färgerna i graferna har en uppgift var: röd = nivåerna, blå = målet, magenta = optionerna,
    grön och röd ljus = upp och ned (ihåliga och fyllda, så att formen bär skillnaden även utan färgseende).
    Paletterna är prövade med dataviz-skillens validator (alla par, ljus och mörk yta). */
 :root{
@@ -8,7 +9,7 @@
   --sans:"Libre Franklin","Franklin Gothic Medium","Helvetica Neue",Arial,sans-serif;
   --gut:24px;--pad:40px;
 }
-html[data-upplaga="morgon"]{
+html[data-tema="ljus"]{
   color-scheme:light;
   --paper:#EEEBE4;--box:#E5E1D7;--ink:#1B1A17;--ink-2:#47443D;--ink-3:#5F5B53;
   --hair:#C8C3B8;--rule:#8C877C;--grid:#D8D3C8;
@@ -19,7 +20,7 @@ html[data-upplaga="morgon"]{
   --c-opt-ut:rgba(162,58,143,.10);--c-opt-in:rgba(162,58,143,.24);
   --grain:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .10  0 0 0 0 .09  0 0 0 0 .07  0 0 0 .055 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
 }
-html[data-upplaga="kvall"]{
+html[data-tema="mork"]{
   color-scheme:dark;
   --paper:#131A21;--box:#1A222B;--ink:#ECE7DE;--ink-2:#C4BEB3;--ink-3:#9C978E;
   --hair:#2A343E;--rule:#5A6570;--grid:#222C36;

@@ -12,7 +12,7 @@
 const S = root.SNAPSHOT;
 if (!S || !S.portfolio || !Array.isArray(S.positions) || !S.positions.length) { root.Tidning = null; return; }
 
-/* ================= läget: upplaga, språk, publik ================= */
+/* ================= läget: upplaga, färgläge, språk, publik ================= */
 const Q = new URLSearchParams(root.location ? root.location.search : '');
 const pref = {
   get(k) { try { return root.localStorage.getItem('portfoljen.v2.' + k); } catch (e) { return null; } },
@@ -23,6 +23,10 @@ function startUpplaga() {
   const p = pref.get('upplaga'); if (p === 'morgon' || p === 'kvall') return p;
   try { return root.matchMedia('(prefers-color-scheme: dark)').matches ? 'kvall' : 'morgon'; } catch (e) { return 'morgon'; }
 }
+function startTema() {
+  const q = Q.get('tema'); if (q === 'ljus' || q === 'mork') return q;
+  return pref.get('tema') === 'mork' ? 'mork' : 'ljus';
+}
 function startLang() {
   const q = Q.get('lang'); if (q === 'en' || q === 'sv') return q;
   return pref.get('lang') === 'en' ? 'en' : 'sv';
@@ -30,9 +34,13 @@ function startLang() {
 /* Den publika sajten (bygg-publik.py) sätter TIDNING_PUBLIK_ENDAST i sin data.js: publikläget är då låst, knappen
    finns inte och adressen bär inget publik-val. Datan där saknar dessutom riktiga belopp, så låset är inte det enda skyddet. */
 const PUBLIK_ENDAST = root.TIDNING_PUBLIK_ENDAST === true;
-const state = { upplaga: startUpplaga(), lang: startLang(), publik: PUBLIK_ENDAST || Q.get('publik') === '1' };
+const state = { upplaga: startUpplaga(), tema: startTema(), lang: startLang(), publik: PUBLIK_ENDAST || Q.get('publik') === '1' };
 const en = () => state.lang === 'en';
 const pub = () => PUBLIK_ENDAST || state.publik;
+/* Sajten (2026-10-05): bara kvällsupplagan, efter stängningen, och färgläget fristående från upplagan: ljust som förval,
+   mörkt bakom växeln Ljust/Mörkt. Konceptets egen vy har kvar båda upplagorna, och där följer ljuset upplagan. */
+const upplaga = () => (pub() ? 'kvall' : state.upplaga);
+const tema = () => (pub() ? state.tema : state.upplaga === 'kvall' ? 'mork' : 'ljus');
 const L = (sv, eng) => (en() ? eng : sv);
 /* Rösten: privat skriver maskinen till ägaren (du), publik skriver den om portföljen. */
 const LV = (svDu, svPub, enYou, enPub) => (en() ? (pub() ? enPub : enYou) : (pub() ? svPub : svDu));
@@ -41,10 +49,12 @@ function setState(patch, persist) {
   Object.assign(state, patch);
   if (persist) {
     if ('upplaga' in patch) pref.set('upplaga', state.upplaga);
+    if ('tema' in patch) pref.set('tema', state.tema);
     if ('lang' in patch) pref.set('lang', state.lang);
     try {
       const u = new URL(root.location.href);
-      u.searchParams.set('upplaga', state.upplaga);
+      if (pub()) { u.searchParams.delete('upplaga'); if (state.tema === 'mork') u.searchParams.set('tema', 'mork'); else u.searchParams.delete('tema'); }
+      else { u.searchParams.set('upplaga', state.upplaga); u.searchParams.delete('tema'); }
       if (state.lang === 'en') u.searchParams.set('lang', 'en'); else u.searchParams.delete('lang');
       if (state.publik && !PUBLIK_ENDAST) u.searchParams.set('publik', '1'); else u.searchParams.delete('publik');
       root.history.replaceState(null, '', u.toString());
@@ -54,14 +64,15 @@ function setState(patch, persist) {
 }
 function applyRoot() {
   const h = document.documentElement;
-  h.dataset.upplaga = state.upplaga; h.lang = state.lang;
+  h.dataset.upplaga = upplaga(); h.dataset.tema = tema(); h.lang = state.lang;
 }
 function href(page, hash) {
   const q = new URLSearchParams();
-  q.set('upplaga', state.upplaga);
+  if (pub()) { if (state.tema === 'mork') q.set('tema', 'mork'); } else q.set('upplaga', state.upplaga);
   if (state.lang === 'en') q.set('lang', 'en');
   if (state.publik && !PUBLIK_ENDAST) q.set('publik', '1');
-  return page + '?' + q.toString() + (hash ? '#' + hash : '');
+  const qs = q.toString();
+  return page + (qs ? '?' + qs : '') + (hash ? '#' + hash : '');
 }
 
 /* ================= format ================= */
@@ -113,6 +124,8 @@ const BYW = POS.slice().sort((a, b) => b.weight - a.weight);
 const pos = id => POS.find(p => p.id === id) || null;
 const ASOF = POS.map(p => p.asof).filter(Boolean).sort().pop();
 const BUILT = (S.meta && S.meta.built) || ASOF;
+/* prototypdatan (byggd för hand) märks så; kvällskörningens data har meta.kind 'EOD' */
+const PROTOTYP = !S.meta || S.meta.kind !== 'EOD';
 const maxBy = (a, f) => a.reduce((b, x) => (f(x) > f(b) ? x : b));
 const minBy = (a, f) => a.reduce((b, x) => (f(x) < f(b) ? x : b));
 const NAMES = {
@@ -252,17 +265,9 @@ function ledePub(ed) {
   const s4 = ev ? L((rubrikRapport ? 'Därefter: ' : 'Nästa väntade rapport: ') + evName(ev) + ' ' + dS(ev.d) + (ev.inner ? ', i ' + nm(ev.p) : '') + '.', (rubrikRapport ? 'After that: ' : 'Next expected report: ') + evName(ev) + ' on ' + dS(ev.d) + (ev.inner ? ', held through ' + prose(ev.p) : '') + '.') : '';
   return [s0, s1, s2, s3, s4].filter(Boolean).join(' ');
 }
-function briefPub(ed) {
+function briefPub() {
+  // publikläget har bara kvällsupplagan (2026-10-05): dagens rörelser, läget mot världsindex och nästa rapporter
   const ev = events(), lead = L('Mot MSCI World: ' + ppS(P.ret - P.msci_ret) + ' sedan köpen.', 'Against MSCI World: ' + ppS(P.ret - P.msci_ret) + ' since the purchases.');
-  if (ed === 'morgon') {
-    const M = S.macro || {}, m = k => (M[k] && !M[k].err ? M[k] : null);
-    const parts = [['^GSPC', 'S&P 500'], ['^NDX', 'Nasdaq 100'], ['^KS11', 'KOSPI']].filter(([k]) => m(k)).map(([k, lab]) => lab + ' ' + pctS(m(k).chg));
-    const vix = m('^VIX'), mDay = (m('^GSPC') || {}).asof || ASOF;
-    const s1 = L('Senaste stängning, ' + wd(mDay) + ': ', 'Latest close, ' + wd(mDay) + ': ') + parts.join(', ') + (vix ? L(' och VIX ', ' and VIX ') + num(vix.last, 1) : '') + '.';
-    const week = ev.filter(e => e.d <= addDays(edDate(ed), 6));
-    const s2 = week.length ? L('Veckan: ' + evList(week) + '.', 'This week: ' + evList(week) + '.') : L('Veckan: inga rapporter; nästa är ' + (ev[0] ? evList([ev[0]]) : '—') + '.', 'This week: no reports; the next is ' + (ev[0] ? evList([ev[0]]) : '—') + '.');
-    return [s1, s2, lead];
-  }
   const mv = maxBy(POS, p => Math.abs(p.day_local));
   const s1 = L('Största rörelsen var ' + nm(mv) + ', ' + pctS(mv.day_local) + '. Hela portföljen ' + pctS(P.day_ret) + '.', 'The biggest move was ' + prose(mv) + ', ' + pctS(mv.day_local) + '. The whole portfolio ' + pctS(P.day_ret) + '.');
   const s3 = ev.length ? L('Nästa rapporter: ', 'Next reports: ') + evList(ev.slice(0, 4)) + '.' : L('Inga rapportdatum i datan.', 'No report dates in the data.');
@@ -303,7 +308,8 @@ const byline = () => LV('Skriven av maskinen ur kurserna och dina positionskort.
 
 function briefLabel(ed) {
   const day = edDate(ed);
-  return ed === 'kvall' ? L('Rapporten ' + wd(day) + ' 22:15', wd(day) + "'s 22:15 report") : L('Rapporten ' + wd(day) + ' 09:00', wd(day) + "'s 09:00 report");
+  let lab = L('Rapporten ' + wd(day) + ' kväll', wd(day) + "'s evening report");
+  return lab;
 }
 function brief(ed) {
   if (pub()) return briefPub(ed);
@@ -832,8 +838,13 @@ function controls(host, onChange) {
   const prevK = document.activeElement && host.contains(document.activeElement) ? document.activeElement.dataset.k : null;
   host.textContent = '';
   const btn = (label, pressed, fn, k) => { const b = el('button', null, label); b.type = 'button'; b.dataset.k = k; b.setAttribute('aria-pressed', String(pressed)); b.addEventListener('click', fn); return b; };
-  const g1 = el('div', 'seg'); g1.setAttribute('role', 'group'); g1.setAttribute('aria-label', L('Upplaga', 'Edition'));
-  g1.append(btn(L('Morgon 09:00', 'Morning 09:00'), state.upplaga === 'morgon', () => onChange({ upplaga: 'morgon' }), 'morgon'), btn(L('Kväll 22:15', 'Evening 22:15'), state.upplaga === 'kvall', () => onChange({ upplaga: 'kvall' }), 'kvall'));
+  const g1 = el('div', 'seg'); g1.setAttribute('role', 'group');
+  if (pub()) {
+    // sajten: bara kvällsupplagan, så växeln byter färgläge (ljust är förval)
+    g1.setAttribute('aria-label', L('Färgläge', 'Colour mode'));
+    g1.append(btn(L('Ljust', 'Light'), state.tema !== 'mork', () => onChange({ tema: 'ljus' }), 'ljus'), btn(L('Mörkt', 'Dark'), state.tema === 'mork', () => onChange({ tema: 'mork' }), 'mork'));
+  } else {
+  }
   const g2 = el('div', 'seg'); g2.setAttribute('role', 'group'); g2.setAttribute('aria-label', L('Språk', 'Language'));
   g2.append(btn('SV', !en(), () => onChange({ lang: 'sv' }), 'sv'), btn('EN', en(), () => onChange({ lang: 'en' }), 'en'));
   const pb = el('button', 'solo'); pb.type = 'button'; pb.dataset.k = 'publik'; pb.setAttribute('aria-pressed', String(state.publik));
@@ -848,8 +859,12 @@ function ears(left, right, ed) {
   left.textContent = ''; right.textContent = '';
   const np = document.getElementById('np-link'); if (np) np.href = href('index.html');
   const day = edDate(ed);
-  put(left, [el('strong', null, cap(wd(day)) + ' ' + dL(day)), el('br'), ed === 'kvall' ? L('Kvällsupplagan 22:15, efter stängningen', 'Evening edition 22:15, after the close') : L('Morgonupplagan 09:00, före öppningen', 'Morning edition 09:00, before the open')]);
-  put(right, [el('strong', null, L('Kurser: stängning ' + wd(ASOF) + ' ' + dS(ASOF), 'Prices: close ' + wd(ASOF) + ' ' + dS(ASOF))), el('br'), L('Byggd ' + wd(BUILT) + ' ' + dS(BUILT) + ' ' + hhmm(BUILT) + ', prototyp', 'Built ' + wd(BUILT) + ' ' + dS(BUILT) + ' ' + hhmm(BUILT) + ', prototype')]);
+  // sajten uppdateras efter stängningen när datan är klar (22:15 eller 22:30), så örat säger ingen fast tid
+  let upplagan = L('Kvällsupplagan, efter stängningen', 'Evening edition, after the close');
+  put(left, [el('strong', null, cap(wd(day)) + ' ' + dL(day)), el('br'), upplagan]);
+  const nar = wd(BUILT) + ' ' + dS(BUILT) + ' ' + hhmm(BUILT);
+  put(right, [el('strong', null, L('Kurser: stängning ' + wd(ASOF) + ' ' + dS(ASOF), 'Prices: close ' + wd(ASOF) + ' ' + dS(ASOF))), el('br'),
+    PROTOTYP ? L('Byggd ' + nar + ', prototyp', 'Built ' + nar + ', prototype') : L('Uppdaterad ' + nar, 'Updated ' + nar)]);
 }
 function strip(host) {
   host.textContent = '';
@@ -956,7 +971,10 @@ function excessTable(tb, sumEl) {
 }
 function footer(host) {
   host.textContent = '';
-  const left = el('span'); left.textContent = L('Datans ålder: stängning ' + wd(ASOF) + ' ' + dSY(ASOF) + ', byggd ' + wd(BUILT) + ' ' + dS(BUILT) + ' ' + hhmm(BUILT) + '. Prototypdata ur Yahoo Finance, MSCI, Eurex, Cboe och FRED.', 'Data age: close ' + wd(ASOF) + ' ' + dSY(ASOF) + ', built ' + wd(BUILT) + ' ' + dS(BUILT) + ' ' + hhmm(BUILT) + '. Prototype data from Yahoo Finance, MSCI, Eurex, Cboe and FRED.');
+  const nar = wd(BUILT) + ' ' + dS(BUILT) + ' ' + hhmm(BUILT);
+  const left = el('span'); left.textContent = PROTOTYP
+    ? L('Datans ålder: stängning ' + wd(ASOF) + ' ' + dSY(ASOF) + ', byggd ' + nar + '. Prototypdata ur Yahoo Finance, MSCI, Eurex, Cboe och FRED.', 'Data age: close ' + wd(ASOF) + ' ' + dSY(ASOF) + ', built ' + nar + '. Prototype data from Yahoo Finance, MSCI, Eurex, Cboe and FRED.')
+    : L('Datans ålder: stängning ' + wd(ASOF) + ' ' + dSY(ASOF) + ', uppdaterad ' + nar + '. Data ur Yahoo Finance, MSCI, Eurex, Cboe och FRED.', 'Data age: close ' + wd(ASOF) + ' ' + dSY(ASOF) + ', updated ' + nar + '. Data from Yahoo Finance, MSCI, Eurex, Cboe and FRED.');
   const right = el('span'); const a = el('a', null, pub() ? L('Om portföljen: syftet och metoden', 'About the portfolio: the aim and the method') : L('Så räknas talen: metoden', 'How the numbers are made: the method')); a.href = href('metod.html'); right.append(a);
   host.append(left, right);
 }
@@ -968,7 +986,7 @@ function onResize(fn) { let t; root.addEventListener('resize', () => { clearTime
 function setRedraw(fn) { redraw = fn; if (!resizeHooked) { resizeHooked = true; onResize(() => redraw && redraw()); } }
 
 /* notisen: syftet, en gång per webbläsare (publikt, "en notis som folk får en gång"). Den räknas som sedd när
-   den visas; under samma sidvisning står den kvar vid omritning (språk, upplaga) tills Okej. Utan lagring visas den
+   den visas; under samma sidvisning står den kvar vid omritning (språk, färgläge) tills Okej. Utan lagring visas den
    varje gång. */
 let notisLage = null;  // null: inte avgjort; 'visas': visas under den här sidvisningen; 'stangd': stängd eller redan sedd
 function notis() {
@@ -991,8 +1009,9 @@ function notis() {
 
 function forsta() {
   applyRoot();
-  const ed = state.upplaga;
-  document.title = L('Portföljen · ', 'Portföljen · ') + (ed === 'kvall' ? L('Kvällsupplagan', 'Evening edition') : L('Morgonupplagan', 'Morning edition'));
+  const ed = upplaga();
+  let titel = L('Kvällsupplagan', 'Evening edition');
+  document.title = 'Portföljen · ' + titel;
   $('tag').textContent = pub() ? L('Försöket att slå världsindex: varje köp jämförs med samma insats i MSCI World samma dag.', 'Trying to beat the world index: every purchase is compared with the same money in MSCI World on the same day.')
     : L('En tidning om fem positioner, skriven av maskinen två gånger om dagen.', 'A newspaper about five positions, written by the machine twice a day.');
   controls($('ctrls'), ch => { setState(ch, true); forsta(); });
@@ -1070,7 +1089,7 @@ function optPub(ob, marks, p, o) {
 
 function positionssida() {
   applyRoot();
-  const ed = state.upplaga;
+  const ed = upplaga();
   const id = (root.location.hash || '#PLTR').slice(1).toUpperCase();
   const p = pos(id) || pos('PLTR');
   document.title = nm(p) + ' · Portföljen';
@@ -1140,7 +1159,7 @@ function metod() {
   $('tag').textContent = '';
   const back = el('a', null, L('← Förstasidan', '← Front page')); back.href = href('index.html'); $('tag').append(back);
   controls($('ctrls'), ch => { setState(ch, true); metod(); });
-  ears($('ear-left'), $('ear-right'), state.upplaga);
+  ears($('ear-left'), $('ear-right'), upplaga());
   const host = $('metod'); host.textContent = '';
   const content = root.TidningMetod ? root.TidningMetod(api) : [];
   const toc = $('toc'); toc.textContent = '';
@@ -1169,7 +1188,7 @@ function metod() {
 }
 
 const api = {
-  S, P, POS, BYW, ASOF, BUILT, state, setState, applyRoot, href, L, LV, en, pub,
+  S, P, POS, BYW, ASOF, BUILT, PROTOTYP, state, setState, applyRoot, href, L, LV, en, pub, upplaga, tema,
   fmt: { num, sgn, pctU, pctS, pct0, ppS, kr, krS, kronor, px, money, tal, dS, dSY, dL, wd, cap, onDay },
   nm, prose, pos, watched, levelsText, malTal, malNot, malBelopp, senaste, senasteText, regD, regW, hasOpt, oiNote, events, evList, edDate, approxMonths, outside, short, exchange, calText,
   text: { headline, lede, byline, brief, briefLabel, storyHeadline, heldLine, dek, checks, chartCaption, barsNote },

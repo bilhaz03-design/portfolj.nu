@@ -1,20 +1,33 @@
 <!doctype html>
-<html lang="sv" data-upplaga="morgon">
+<html lang="sv" data-upplaga="morgon" data-tema="ljus">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-BYcCEfNRxvdeXky++jX7bkZvtkCex0LT2CTNPprhwOQ=' 'sha256-4cR6Da5ETjnYftuROiI3VL/cuUccdMUCxvDBPxYOQP8='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-yNNZuoKzsgXsuVcPRx/MwLX3IZPMnF91Gwi0AlOd+pw=' 'sha256-4cR6Da5ETjnYftuROiI3VL/cuUccdMUCxvDBPxYOQP8='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Positionen · Portföljen</title>
 <meta name="description" content="En position i Portföljen: grafen med optionernas solfjäder, tankarna, senaste händelsen och riktkursen.">
 <script>
+/* Färgläget sätts före första målningen, så att mörkt läge inte blinkar vitt. Samma ordning som tidning.js.
+   Sajten och konceptets publikläge: bara kvällsupplagan, ljust som förval, mörkt om ?tema=mork eller det sparade
+   valet säger det. Konceptets egen vy: upplagan ur adressen, det sparade valet eller systemet, och ljuset följer den. */
 (function () {
-  var u = null;
-  try { u = new URLSearchParams(location.search).get('upplaga'); } catch (e) {}
+  var PUBLIK = true;  /* bygg-publik.py sätter true på sajten */
+  var d = document.documentElement, q = null;
+  try { q = new URLSearchParams(location.search); } catch (e) {}
+  if (PUBLIK || (q && q.get('publik') === '1')) {
+    var t = q && q.get('tema');
+    if (t !== 'ljus' && t !== 'mork') { try { t = localStorage.getItem('portfoljen.v2.tema'); } catch (e) { t = null; } }
+    d.setAttribute('data-upplaga', 'kvall');
+    d.setAttribute('data-tema', t === 'mork' ? 'mork' : 'ljus');
+    return;
+  }
+  var u = q && q.get('upplaga');
   if (u !== 'morgon' && u !== 'kvall') { try { u = localStorage.getItem('portfoljen.v2.upplaga'); } catch (e) { u = null; } }
   if (u !== 'morgon' && u !== 'kvall') { try { u = matchMedia('(prefers-color-scheme: dark)').matches ? 'kvall' : 'morgon'; } catch (e) { u = 'morgon'; } }
-  document.documentElement.setAttribute('data-upplaga', u);
+  d.setAttribute('data-upplaga', u);
+  d.setAttribute('data-tema', u === 'kvall' ? 'mork' : 'ljus');
 })();
 </script>
 <link rel="stylesheet" href="fonts/fonts.css">
