@@ -276,9 +276,23 @@
       W.sv('line', { x1: x.toFixed(1), x2: x.toFixed(1), y1: H - padB - 5, y2: H - padB + 4, stroke: sk.ink2, 'stroke-width': 1.25 }, g);
       return { b, g, x, namn: KORT[b.p.id] || T.nm(b.p) };
     });
-    // namnen under strecken, i rader så att de inte krockar
+    // namnen under strecken (2026-10-06): köp som ligger så tätt att namnen inte ryms bredvid varandra skrivs som en rad
+    // med kommatecken ("Emcor, Siemens, Palantir") i stället för en trappa av namn som läses ihop. Varje namn ligger kvar
+    // i sitt köps grupp, så att loppet tänder dem ett i taget. Grupperna läggs i rader med minst 12 px mellan.
+    const matt = t => { let w = 0; try { w = t.getComputedTextLength(); } catch (e) { /* inte ritad */ } return w > 0 ? w : t.textContent.length * 6.1; };
+    const grupper = [];
+    kop.forEach(k => { const g = grupper[grupper.length - 1]; if (g && k.x < g.slut + 12) { g.k.push(k); g.slut = Math.max(g.slut, k.x + k.namn.length * 6.1); } else grupper.push({ k: [k], slut: k.x + k.namn.length * 6.1 }); });
     const radSlut = [-1e9, -1e9, -1e9];
-    kop.forEach(k => { const w = k.namn.length * 6.1; let rr = radSlut.findIndex(e => e < k.x - 6); if (rr < 0) rr = 2; radSlut[rr] = k.x + w; const t = txt(k.x, H - padB + 15 + rr * 12, k.namn, { fill: sk.ink2, 'text-anchor': k.x + w > Wd ? 'end' : 'start' }); k.g.append(t); });
+    grupper.forEach(g => {
+      const t = g.k.map((k, j) => { const e = txt(0, 0, k.namn + (j < g.k.length - 1 ? ',' : ''), { fill: sk.ink2 }); k.g.append(e); return e; });
+      const w = t.map(matt), hel = w.reduce((a, b) => a + b, 0) + 4 * (t.length - 1);
+      // en grupp står centrerad under sina streck, inom grafens bredd; ett ensamt namn börjar vid sitt streck
+      let x0 = g.k[0].x;
+      if (g.k.length > 1) x0 = Math.max(0, Math.min(Wd - hel, (g.k[0].x + g.k[g.k.length - 1].x) / 2 - hel / 2));
+      else if (x0 + hel > Wd) x0 = Math.max(0, x0 - hel);
+      let rr = radSlut.findIndex(e => e < x0 - 12); if (rr < 0) rr = 2; radSlut[rr] = x0 + hel;
+      let x = x0; t.forEach((e, j) => { e.setAttribute('x', x.toFixed(1)); e.setAttribute('y', (H - padB + 15 + rr * 12).toFixed(1)); x += w[j] + 4; });
+    });
     // markören: datum överst, prickar på linjerna och talen bredvid linjernas huvuden (klasserna avl-* läses av kontrollerna)
     const mark = W.sv('g', { 'pointer-events': 'none' }, svg);
     const mLinje = W.sv('line', { y1: padT - 4, y2: H - padB, stroke: sk.ink2, 'stroke-width': 1, 'stroke-dasharray': '2 3' }, mark);

@@ -1,5 +1,5 @@
 /* inlagg.css: fristående inlägg, Utanför portföljen (2026-10-06; formen ur koncept/v3-wow/6-inlagg). Samma tidning,
-   en spalt för läsning; puffen på förstasidan står under I korthet. */
+   en spalt för läsning; på förstasidan står det senaste inlägget som en rad ovanför remsan. */
 .masthead.small { padding-top: 10px; }
 .masthead.small .nameplate { font-size: 44px; }
 .masthead.small .nameplate a { text-decoration: none; }

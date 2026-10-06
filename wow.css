@@ -2,7 +2,7 @@
    Lagret i wow.js; inget här ändrar sidan när introt inte spelas, utom Loppets graf och knapp. */
 
 /* ---- 1. Tryckningen ---- */
-/* Sidan trycks när läsaren kommer in. Ett enda förlopp, cirka två sekunder, en gång per flik.
+/* Sidan trycks när läsaren kommer in. Ett enda förlopp, cirka två sekunder, en gång per webbläsare och sida.
    Ordningen följer en tryckpress: linjerna dras, namnet färgas in, räkneverken rullar fram, rubriken sätts ord för
    ord och staplarna växer. Efteråt är sidan exakt dagens tidning. */
 

@@ -1,6 +1,6 @@
 /* inlagg.js: fristående inlägg på portfolj.nu, Utanför portföljen (2026-10-06; formen ur koncept/v3-wow/6-inlagg).
-   På inlagg.html ritas inläggen, nyast först, med tidningens sidhuvud och sidfot. På förstasidan står en puff under
-   I korthet som länkar till det senaste, så att huvudrubriken fortsätter att handla om försöket att slå världsindex.
+   På inlagg.html ritas inläggen, nyast först, med tidningens sidhuvud och sidfot. På förstasidan står en rad ovanför
+   remsan som länkar till det senaste, så att huvudrubriken fortsätter att handla om försöket att slå världsindex.
    Texten är skribentens egen och står ordagrant (window.PORTFOLJ_INLAGG i inlagg-data.js). Inlägget är på svenska också
    när sidan är på engelska. Grafen är små grafer med gemensam tidsaxel, aldrig två y-axlar, med avläsning dag för dag
    och talen i en tabell. */

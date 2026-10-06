@@ -442,6 +442,10 @@ function skin(host) {
 }
 function stext(parent, sk, x, y, str, attrs) { const t = sv('text', Object.assign({ x: r1(x), y: r1(y), 'font-family': sk.sans, 'font-size': 11, fill: sk.ink3 }, attrs || {}), parent); t.textContent = str; return t; }
 function halo(t, sk, w) { t.setAttribute('paint-order', 'stroke'); t.setAttribute('stroke', sk.paper); t.setAttribute('stroke-width', w || 4); t.setAttribute('stroke-linejoin', 'round'); return t; }
+// en ritad texts bredd i bildpunkter; innan den har målats (eller i ett dolt fönster) en uppskattning per tecken
+function bredd(t, perTecken) { let w = 0; try { w = t.getComputedTextLength(); } catch (e) { /* inte ritad */ } return w > 0 ? w : t.textContent.length * (perTecken || 6.1); }
+// två texter krockar när deras rutor ligger närmare än luft px
+function krock(a, b, luft) { try { const r = a.getBBox(), s = b.getBBox(), p = luft === undefined ? 2 : luft; return r.width > 0 && s.width > 0 && r.x < s.x + s.width + p && s.x < r.x + r.width + p && r.y < s.y + s.height + p && s.y < r.y + r.height + p; } catch (e) { return false; } }
 function niceStep(span, target) { const raw = span / target, p10 = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p10; return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p10; }
 function spreadYs(ys, gap) { const idx = ys.map((y, i) => [y, i]).sort((a, b) => a[0] - b[0]), out = ys.slice(); for (let k = 1; k < idx.length; k++) { const prev = out[idx[k - 1][1]]; if (out[idx[k][1]] - prev < gap) out[idx[k][1]] = prev + gap; } return out; }
 const reduceMotion = (() => { try { return root.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
@@ -482,7 +486,9 @@ function crosshair(svg, wrap, W, o) {
 /* --- mätaren mot MSCI World (bild 01, tecknad i tidningens bläck) --- */
 function gauge(host) {
   const sk = skin(host); host.textContent = '';
-  const W = 264, H = 172, cx = 132, cy = 106, r = 92, lo = -0.10, hi = 0.30, a0 = 210, sweep = 240;
+  // H 172 → 180 (2026-10-06): undertexten flyttas ned så att den går fri från bågens ändstreck (förut 2,5 px under dem);
+  // cx och cy är oförändrade, eftersom wow.js hittar nålen på dem
+  const W = 264, H = 180, cx = 132, cy = 106, r = 92, lo = -0.10, hi = 0.30, a0 = 210, sweep = 240;
   const lead = P.ret - P.msci_ret;
   const ang = v => (a0 - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * sweep) * Math.PI / 180;
   const pt = (v, rr) => [cx + rr * Math.cos(ang(v)), cy - rr * Math.sin(ang(v))];
@@ -502,8 +508,8 @@ function gauge(host) {
   const [nx, ny] = pt(P.ret, r - 22);
   sv('line', { x1: cx, y1: cy, x2: r1(nx), y2: r1(ny), stroke: sk.ink, 'stroke-width': 2.4, 'stroke-linecap': 'round' }, svg);
   sv('circle', { cx, cy, r: 5, fill: sk.ink, stroke: sk.paper, 'stroke-width': 2 }, svg);
-  stext(svg, sk, cx, cy + 36, pub() ? ppS(lead) : krS(P.excess_sek), { 'text-anchor': 'middle', 'font-family': sk.serif, 'font-size': 29, 'font-weight': 600, fill: sk.ink });
-  stext(svg, sk, cx, cy + 56, pub() ? L('före MSCI World, samma insats', 'ahead of MSCI World, same money') : ppS(lead) + L(lead >= 0 ? ' före MSCI World' : ' efter MSCI World', lead >= 0 ? ' ahead of MSCI World' : ' behind MSCI World'), { 'text-anchor': 'middle', 'font-size': 11.5, fill: sk.ink2 });
+  stext(svg, sk, cx, cy + 40, pub() ? ppS(lead) : krS(P.excess_sek), { 'text-anchor': 'middle', 'font-family': sk.serif, 'font-size': 29, 'font-weight': 600, fill: sk.ink });
+  stext(svg, sk, cx, cy + 66, pub() ? L('före MSCI World, samma insats', 'ahead of MSCI World, same money') : ppS(lead) + L(lead >= 0 ? ' före MSCI World' : ' efter MSCI World', lead >= 0 ? ' ahead of MSCI World' : ' behind MSCI World'), { 'text-anchor': 'middle', 'font-size': 11.5, fill: sk.ink2 });
   return svg;
 }
 function gaugeKeys(host) {
@@ -699,6 +705,7 @@ function positionChart(host, p, opt) {
   const id = 'pc' + Math.random().toString(36).slice(2, 7), defs = sv('defs', {}, svg);
   const cp = sv('clipPath', { id: id + 'c' }, defs); sv('rect', { x: m.l, y: m.t, width: pw, height: H - m.t - m.b }, cp);
   const plot = sv('g', { 'clip-path': `url(#${id}c)` }, svg);
+  let kant = null, kantY = null; const nivaEt = [];  // kanalens etikett och nivåernas, för krockkontrollen
   sv('rect', { x: r1(m.l + histW), y: m.t, width: r1(futW), height: H - m.t - m.b, fill: sk.zon }, svg);
   // rutnät och axel till höger
   // axeltal som skulle hamna under en skylt (nivå, riktkurs, förväntat, kurs) ritas inte
@@ -718,7 +725,14 @@ function positionChart(host, p, opt) {
   }
   const fticks = fan ? (futW < 170 ? [[0.5, L('+6 mån', '+6 mo')], [1, L('+12 mån', '+12 mo')]] : [[0.25, L('+3 mån', '+3 mo')], [0.5, L('+6 mån', '+6 mo')], [0.75, L('+9 mån', '+9 mo')], [1, L('+12 mån', '+12 mo')]])
     : [[5 / 252, L('1 v', '1 wk')], [10 / 252, L('2 v', '2 wk')], [15 / 252, L('3 v', '3 wk')], [21 / 252, L('21 d', '21 d')]].filter((x, k) => futW >= 170 || k % 2 === 1);
-  fticks.forEach(([t, lab]) => stext(svg, sk, xf(t), H - 9, lab, { 'text-anchor': t >= T - 1e-9 ? 'end' : 'middle', 'font-size': 10.5 }));
+  // från höger: en etikett som skulle gå in i den till höger om sig (minst 10 px luft) eller förbi "i dag" ritas inte;
+  // i mobilen gick "+6 mån" och "+12 mån" ihop till "+6 mån+12 mån" (2026-10-06)
+  let fritt = Infinity;
+  fticks.slice().reverse().forEach(([t, lab]) => {
+    const slut = t >= T - 1e-9, et = stext(svg, sk, xf(t), H - 9, lab, { 'text-anchor': slut ? 'end' : 'middle', 'font-size': 10.5 }), w = bredd(et, 5.8);
+    const x0 = slut ? xf(t) - w : xf(t) - w / 2, x1 = slut ? xf(t) : xf(t) + w / 2;
+    if (x1 > fritt - 10 || x0 < m.l + histW + 2) et.remove(); else fritt = x0;
+  });
   // kanalerna
   if (rd) {
     const a = Math.max(chanVal(rd, off).a, off), up = [], dn = [], mid = [], sd2 = 2 * rd.channel.sd;
@@ -733,7 +747,7 @@ function positionChart(host, p, opt) {
     [up, dn].forEach(pts => pts.length > 1 && sv('path', { d: pathD(pts), fill: 'none', stroke: sk.kanalkant, 'stroke-width': 1, 'stroke-dasharray': '6 4' }, plot));
     // etiketten bara när kursen faktiskt står vid kanten (rubriken kan bygga på den)
     const yEdge = dn.length ? dn[dn.length - 1][1] : null;
-    if (rw.channel.z <= -1.5 && yEdge !== null && yEdge > m.t + 10 && yEdge < H - m.b - 6) halo(stext(svg, sk, m.l + histW - 6, yEdge + 14, L('veckokanalens nedre kant', 'lower edge, weekly channel'), { 'text-anchor': 'end', 'font-size': 10.5, fill: sk.ink2 }), sk);
+    if (rw.channel.z <= -1.5 && yEdge !== null && yEdge > m.t + 10 && yEdge < H - m.b - 6) { kant = halo(stext(svg, sk, m.l + histW - 6, yEdge + 14, L('veckokanalens nedre kant', 'lower edge, weekly channel'), { 'text-anchor': 'end', 'font-size': 10.5, fill: sk.ink2 }), sk); kantY = yEdge; }
   }
   // solfjädern eller bruset
   const K = 48, TT = [...Array(K + 1).keys()].map(k => k / K * T);
@@ -764,10 +778,13 @@ function positionChart(host, p, opt) {
   const hline = (v, col, w, dash, label, plate) => {
     if (!ok(v)) return; const y = Y(v); if (y < m.t || y > H - m.b) return;
     sv('line', { x1: m.l, x2: m.l + pw, y1: r1(y), y2: r1(y), stroke: col, 'stroke-width': w, 'stroke-dasharray': dash || null }, svg);
-    if (label) halo(stext(svg, sk, m.l + 6, y - 6, label, { fill: col, 'font-size': 11.5, 'font-weight': 600 }), sk);
+    if (label) nivaEt.push(halo(stext(svg, sk, m.l + 6, y - 6, label, { fill: col, 'font-size': 11.5, 'font-weight': 600 }), sk));
     if (plate) plates.push({ y, text: tal(v), color: col });
   };
   if (pub()) lvPub.forEach(v => hline(v, sk.regel, 1, '5 4', L('nivå ', 'level ') + px(v), false));
+  // kanalens etikett får inte ligga på en nivås etikett: först ovanför kanten, annars ingen (2026-10-06: i mobilen låg
+  // "veckokanalens nedre kant" över "nivå 139,16")
+  if (kant && nivaEt.some(n => krock(n, kant))) { kant.setAttribute('y', r1(kantY - 6)); if (nivaEt.some(n => krock(n, kant))) kant.remove(); }
   // ankaret
   if (rd) {
     const ai = allD.findIndex(d => d >= rd.channel.start);
@@ -785,8 +802,19 @@ function positionChart(host, p, opt) {
     const x = xi(ei - off), yb = Y(s.d_low[ei]) + 6, mine = p.chart === p.held;
     sv('path', { d: `M${r1(x)} ${r1(yb)} l-5 9 h10 z`, fill: sk.mal }, svg);
     const txt = mine ? L('köp ', 'buy ') + px(p.entry_px) : L('köp ' + short(p.held) + ' ' + px(p.entry_px) + ' euro', 'buy ' + short(p.held) + ' EUR ' + px(p.entry_px));
-    const right = x > m.l + histW - 110;
-    halo(stext(svg, sk, right ? x - 8 : x + 8, yb + 9, txt, { fill: sk.mal, 'font-size': 11, 'font-weight': 600, 'text-anchor': right ? 'end' : 'start' }), sk);
+    // etiketten står inom historiken: helst som förut (till vänster om pricken nära i dag, annars till höger), annars på
+    // andra sidan, annars kortare. Ett köp i ett annat papper än grafens får inte ett pris som inte står på grafens axel,
+    // så dess korta form är bara "köp" (2026-10-06: i mobilen klipptes "köp FLXK 82,15 euro" av vänsterkanten)
+    const kt = halo(stext(svg, sk, x + 8, yb + 9, txt, { fill: sk.mal, 'font-size': 11, 'font-weight': 600 }), sk);
+    const forst = x > m.l + histW - 110 ? 'end' : 'start';
+    const lagd = [txt, mine ? L('köp ', 'buy ') + px(p.entry_px) : L('köp', 'buy')].some(str => {
+      kt.textContent = str; const w = bredd(kt, 6.4);
+      const fri = { end: x - 8 - w >= m.l, start: x + 8 + w <= m.l + histW - 4 }, andra = forst === 'end' ? 'start' : 'end';
+      const val = fri[forst] ? forst : fri[andra] ? andra : null;
+      if (!val) return false;
+      kt.setAttribute('text-anchor', val); kt.setAttribute('x', r1(val === 'end' ? x - 8 : x + 8)); return true;
+    });
+    if (!lagd) { kt.setAttribute('text-anchor', 'start'); kt.setAttribute('x', r1(m.l + 2)); }
   }
   // i dag
   sv('line', { x1: r1(m.l + histW), x2: r1(m.l + histW), y1: m.t - 6, y2: H - m.b, stroke: sk.rule, 'stroke-width': 1 }, svg);
@@ -802,7 +830,10 @@ function positionChart(host, p, opt) {
     sv('path', { d: `M${r1(xe)} ${r1(ye - 7)} l7 7 l-7 7 l-7 -7 z`, fill: sk.opt, stroke: sk.paper, 'stroke-width': 2 }, svg);
     plates.push({ y: ye, text: pub() ? num(malTal(p), 0) : px(o.target_12m), color: sk.opt });
     const lab = pub() ? L('riktkurs ', 'price target ') + num(malTal(p), 0) + ', ' + pctS(o.er) + (malNot(p) ? ' (' + malNot(p) + ')' : '') : L('förväntat ', 'expected ') + px(o.target_12m) + ', ' + pctS(o.er) + ' (' + oiNote(o, true) + ')';
-    halo(stext(svg, sk, xe - 12, ye - 10, lab, { 'text-anchor': 'end', 'font-size': 11, 'font-weight': 600, fill: sk.ink }), sk);
+    const rl = halo(stext(svg, sk, xe - 12, ye - 10, lab, { 'text-anchor': 'end', 'font-size': 11, 'font-weight': 600, fill: sk.ink }), sk);
+    // får etiketten inte plats mellan grafens vänsterkant och pricken står den utan anteckningen inom parentes, som också
+    // står under riktkursen i siffrorna och i bildtexten (2026-10-06: i mobilen klipptes början av)
+    if (bredd(rl, 6.4) > xe - 12 - m.l) rl.textContent = pub() ? L('riktkurs ', 'price target ') + num(malTal(p), 0) + ', ' + pctS(o.er) : L('förväntat ', 'expected ') + px(o.target_12m) + ', ' + pctS(o.er);
     const q = fan.q12;
     if (Y(q.q95) < m.t + 4) stext(svg, sk, xe - 4, m.t + 12, L('5 % chans över ', '5% chance above ') + pxq(q.q95) + ' ↑', { 'text-anchor': 'end', 'font-size': 10.5 });
     else halo(stext(svg, sk, xe - 4, Y(q.q95) - 4, L('5 % över ', '5% above ') + pxq(q.q95), { 'text-anchor': 'end', 'font-size': 10.5 }), sk);
@@ -938,8 +969,12 @@ function teaser(p) {
   const a = el('article', 'story');
   a.append(el('p', 'kicker', p.name));
   a.append(el('p', 'held', heldLine(p)));
-  const h = el('h3'); const link = el('a', null, storyHeadline(p)); link.href = href('position.html', p.id); h.append(link); a.append(h);
-  if (pub()) { const st = senasteText(p); if (st) a.append(el('p', 'senaste', st)); }
+  // rubriken och texten i en behållare: puffens rader linjeras över hela raden (tidning.css, subgrid), och rubriken
+  // och texten hör ihop så att en kort rubrik inte får ett glapp under sig
+  const tx = el('div', 'story-text');
+  const h = el('h3'); const link = el('a', null, storyHeadline(p)); link.href = href('position.html', p.id); h.append(link); tx.append(h);
+  if (pub()) { const st = senasteText(p); if (st) tx.append(el('p', 'senaste', st)); }
+  a.append(tx);
   const sp = el('div', 'sparkholder'); sp.dataset.id = p.id; a.append(sp);
   const foot = el('div', 'storyfoot');
   if (pub()) foot.append(el('span', null, L('Mot MSCI World ', 'vs MSCI World ') + ppS(p.ret - p.msci_ret)), el('span', null, L('Riktkurs ', 'Price target ') + (malTal(p) === null ? '—' : num(malTal(p), 0))));
@@ -1164,6 +1199,9 @@ function positionssida() {
     a.addEventListener('click', e => { e.preventDefault(); root.history.replaceState(null, '', a.getAttribute('href')); positionssida(); root.scrollTo({ top: 0 }); });
     nav.append(a);
   });
+  // i ett smalt fönster rullar raden så att den valda positionen står mitt i, inte halvt utanför kanten (2026-10-06)
+  const vald = nav.querySelector('[aria-current="page"]');
+  if (vald && nav.scrollWidth > nav.clientWidth) { const r = vald.getBoundingClientRect(), n = nav.getBoundingClientRect(); nav.scrollLeft += (r.left + r.width / 2) - (n.left + n.width / 2); }
   const kick = $('kick'); kick.textContent = '';
   kick.append(document.createTextNode(p.name + ' '), el('span', null, p.chart !== p.held ? L('Graf ' + p.chart + ' i dollar, ägd som ' + short(p.held) + ' på ' + exchange(p) + ' i euro', 'Chart ' + p.chart + ' in dollars, held as ' + short(p.held) + ' on ' + exchange(p) + ' in euros') : p.chart + ', ' + exchange(p) + ', ' + ccyWord(p.ccy)));
   $('a-h1').textContent = storyHeadline(p);

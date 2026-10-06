@@ -7,7 +7,10 @@
 :root{
   --serif:"Newsreader","Iowan Old Style",Georgia,serif;
   --sans:"Libre Franklin","Franklin Gothic Medium","Helvetica Neue",Arial,sans-serif;
-  --gut:24px;--pad:40px;
+  --gut:32px;--pad:40px;
+  /* rastret (2026-10-06): varje flerspaltig del står på 12 lika kolumner utan mellanrum, så att alla lodräta linjer
+     hamnar på samma tolftedelar av sidan; luften ligger som utfyllnad, lika mycket på båda sidor om varje linje */
+  --luft:16px;
 }
 html[data-tema="ljus"]{
   color-scheme:light;
@@ -32,6 +35,9 @@ html[data-tema="mork"]{
   --grain:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .93  0 0 0 0 .91  0 0 0 0 .87  0 0 0 .035 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
 }
 *{box-sizing:border-box}
+/* webbläsaren ger figure 1em marginal över och under (17 px); sidan satte bara sidomarginalerna till noll, så graferna
+   fick 17 px luft som ingen hade valt: under huvud- och högerspalten och runt positionens graf (mätt 2026-10-06) */
+figure{margin:0}
 html{-webkit-text-size-adjust:100%;background:var(--paper)}
 body{margin:0;color:var(--ink);background-color:var(--paper);background-image:var(--grain);
   font-family:var(--serif);font-optical-sizing:auto;font-size:17px;line-height:1.55;
@@ -72,18 +78,19 @@ a{color:inherit}
 .rules{border-top:3px solid var(--ink);border-bottom:1px solid var(--ink);height:6px;margin-top:4px}
 
 /* ---------- remsan ---------- */
-.strip{display:grid;grid-template-columns:1.25fr repeat(5,minmax(0,1fr));border-bottom:1px solid var(--ink)}
-.cell{padding:7px 14px 8px;border-left:1px solid var(--hair);min-width:0}
+.strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border-bottom:1px solid var(--ink)}
+.cell{padding:7px var(--luft) 8px;border-left:1px solid var(--hair);min-width:0}
 .cell:first-child{border-left:0;padding-left:0}
+.cell:last-child{padding-right:0}
 .cell .lab{font-family:var(--sans);font-size:12px;color:var(--ink-3);display:block}
 .cell .val{font-family:var(--serif);font-size:23px;font-weight:600;line-height:1.15;display:block;letter-spacing:-.005em}
 .cell:first-child .val{font-size:29px;line-height:1.05}
 .cell .sub{font-family:var(--sans);font-size:11.5px;color:var(--ink-3);display:block;margin-top:1px}
 
 /* ---------- förstasidan: huvudspalt och högerspalt ---------- */
-.front{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:0 var(--gut);border-bottom:1px solid var(--ink)}
-.lead{grid-column:1 / span 8;min-width:0;padding:14px 8px 0 0}
-.rail{grid-column:9 / span 4;min-width:0;border-left:1px solid var(--hair);padding:14px 0 0 var(--gut)}
+.front{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));border-bottom:1px solid var(--ink)}
+.lead{grid-column:1 / span 8;min-width:0;padding:14px var(--luft) 0 0}
+.rail{grid-column:9 / span 4;min-width:0;border-left:1px solid var(--hair);padding:14px 0 0 var(--luft)}
 .lead h1{font-family:var(--serif);font-weight:700;font-size:44px;line-height:1.04;letter-spacing:-.018em;margin:0 0 12px;font-variation-settings:"opsz" 72;text-wrap:balance}
 .lede{font-size:19px;line-height:1.52;margin:0;max-width:68ch;font-variation-settings:"opsz" 14;text-wrap:pretty}
 .byline{font-family:var(--sans);font-size:12px;color:var(--ink-3);margin-top:9px}
@@ -92,6 +99,11 @@ a{color:inherit}
 .ghead h2{font-family:var(--sans);font-weight:600;font-size:14px;margin:0}
 .gsub{font-family:var(--sans);font-size:12px;color:var(--ink-3);margin:2px 0 4px}
 .rail .graphic:first-child{border-top:0;margin-top:0;padding-top:0}
+/* högerspalten slutar på samma linje som huvudspalten: mätaren står överst, staplarna står mot spaltens fot och luften
+   hamnar mellan dem (förut 117–182 px tomt under staplarna, mätt 2026-10-06); minst 14 px mellan modulerna */
+.rail{display:flex;flex-direction:column}
+.rail .graphic:first-child{margin-bottom:14px}
+.rail .graphic + .graphic{margin-top:auto}
 .chartwrap{position:relative}
 .chartwrap svg{display:block;width:100%;overflow:visible}
 .chartwrap:focus-within{outline:2px solid var(--ink);outline-offset:4px}
@@ -108,9 +120,14 @@ a{color:inherit}
 
 /* ---------- puffar ---------- */
 .desk{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-bottom:1px solid var(--ink)}
-.story{position:relative;padding:12px 16px 12px;border-left:1px solid var(--hair);min-width:0}
+.story{position:relative;padding:12px var(--luft) 12px;border-left:1px solid var(--hair);min-width:0}
 .story:first-child{border-left:0;padding-left:0}
 .story:last-child{padding-right:0}
+/* puffens sex delar (namn, innehav, rubrik med text, graf, fot, fakta) står på samma rader i alla puffar i en rad:
+   rubrikerna börjar på samma linje och graferna och fötterna står på samma linje, hur lång texten än är */
+@supports (grid-template-rows:subgrid){
+  .story{display:grid;grid-row:span 6;grid-template-rows:subgrid;row-gap:0}
+}
 .kicker{font-family:var(--sans);font-size:12.5px;font-weight:600;margin:0}
 .held{font-family:var(--sans);font-size:11.5px;color:var(--ink-3);margin:1px 0 6px;line-height:1.35}
 .story h3{font-family:var(--serif);font-weight:700;font-size:21px;line-height:1.12;margin:0 0 6px;letter-spacing:-.008em;font-variation-settings:"opsz" 36;text-wrap:balance}
@@ -129,18 +146,28 @@ a{color:inherit}
 .sub2{color:var(--ink-3);font-size:12.5px;font-family:var(--sans)}
 
 /* ---------- i korthet, kalendern, marknaderna ---------- */
-.lower{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:0 var(--gut);border-bottom:1px solid var(--ink);padding:12px 0 14px}
-.lower > section{min-width:0}
-.brief{grid-column:1 / span 6}
-.calendar{grid-column:7 / span 3;border-left:1px solid var(--hair);padding-left:var(--gut)}
-.markets{grid-column:10 / span 3;border-left:1px solid var(--hair);padding-left:var(--gut)}
+/* huvudspalt och sidospalt som förstasidan ovanför (8 + 4): I korthet och Kalendern under varandra till vänster,
+   Marknaderna till höger, och linjen mellan dem står i samma lodlinje som högerspaltens. Förut tre spalter där
+   I korthet slutade 216 px före raden (mätt 2026-10-06); mätt med dagens innehåll slutar spalterna nu
+   inom 14 px från varandra, och högst 48 px isär med en kalenderrad mer eller mindre. Samma rubriknivå i alla tre. */
+.lower{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));grid-template-rows:auto 1fr;border-bottom:1px solid var(--ink)}
+.lower > section{min-width:0;padding:12px var(--luft) 14px}
+.lower > .brief{grid-column:1 / span 8;grid-row:1;padding-left:0;padding-bottom:0}
+.lower > .calendar{grid-column:1 / span 8;grid-row:2;padding-left:0;padding-top:20px}
+.lower > .markets{grid-column:9 / span 4;grid-row:1 / span 2;border-left:1px solid var(--hair);padding-right:0}
+.brief .lines{columns:2;column-gap:var(--gut)}
+.brief .lines p{break-inside:avoid}
+.lower .markets table.t td{padding:6px 0}
+/* listornas sista rad har redan 6 px luft under sig; sektionens egen utfyllnad gav 26 px till linjen mot 15–16 px i
+   remsan, förstasidan och puffarna (optiskt mätt 2026-10-06) */
+.lower > .calendar,.lower > .markets{padding-bottom:4px}
 .lower h2{font-family:var(--serif);font-weight:700;font-size:22px;margin:0 0 8px;font-variation-settings:"opsz" 36}
-.brief .head{display:grid;grid-template-columns:9.5em 1fr;gap:4px 18px;align-items:baseline}
-.brief .head h2{font-family:var(--sans);font-size:13px;font-weight:600;margin:0;line-height:1.5}
 .brief .lines p{margin:0 0 6px;font-size:17px;line-height:1.5}
 .brief .lines p:last-child{margin-bottom:0}
 .callist{list-style:none;margin:0;padding:0}
 .callist li{display:grid;grid-template-columns:4.4em 1fr;gap:10px;border-bottom:1px solid var(--hair);padding:6px 0;font-size:15px;line-height:1.4}
+/* listans sista rad har ingen egen linje: sektionens linje en bit under blev annars en dubbellinje */
+.callist li:last-child,.lower table.t tr:last-child td{border-bottom:0}
 .callist time{font-variant-numeric:tabular-nums lining-nums;font-weight:700}
 table.t{width:100%;border-collapse:collapse;font-size:14.5px;font-variant-numeric:tabular-nums lining-nums}
 table.t th{font-family:var(--sans);font-weight:600;font-size:11.5px;color:var(--ink-3);text-align:right;border-bottom:1px solid var(--ink);padding:3px 0 4px}
@@ -149,7 +176,7 @@ table.t td{border-bottom:1px solid var(--hair);padding:4px 0;text-align:right}
 table.t td+td,table.t th+th{padding-left:10px}
 
 /* ---------- börslistan ---------- */
-.listwrap{border-bottom:3px solid var(--ink)}
+.listwrap{border-bottom:3px solid var(--ink);padding-bottom:8px}
 .listhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px 24px;padding:9px 0 2px}
 .listhead h2{font-family:var(--serif);font-size:22px;font-weight:700;margin:0;font-variation-settings:"opsz" 36}
 .listhead p{font-family:var(--sans);font-size:11.5px;color:var(--ink-3);margin:0;text-align:right;max-width:110ch}
@@ -182,20 +209,23 @@ details.numbers table{margin-top:8px;max-width:760px}
 /* ---------- positionssidan ---------- */
 .posnav{display:flex;gap:0;border-bottom:1px solid var(--ink);overflow-x:auto;scrollbar-width:none}
 .posnav::-webkit-scrollbar{display:none}
-.posnav a{display:flex;flex-direction:column;gap:1px;padding:9px 18px 8px 0;margin-right:18px;text-decoration:none;font-family:var(--sans);font-size:12px;color:var(--ink-3);border-bottom:3px solid transparent;white-space:nowrap}
+.posnav a{display:flex;flex-direction:column;gap:1px;padding:9px 0 8px;margin-right:36px;text-decoration:none;font-family:var(--sans);font-size:12px;color:var(--ink-3);border-bottom:3px solid transparent;white-space:nowrap}
+.posnav a:last-child{margin-right:0}
 .posnav a b{font-family:var(--serif);font-size:17px;font-weight:600;color:var(--ink-2)}
 .posnav a[aria-current="page"]{border-bottom-color:var(--ink)}
 .posnav a[aria-current="page"] b{color:var(--ink)}
 .posnav a:hover b{color:var(--ink)}
-.article{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:0 var(--gut)}
+.article{display:grid;grid-template-columns:repeat(12,minmax(0,1fr))}
 .ahead{grid-column:1 / span 9;padding:18px 0 10px;min-width:0}
 .ahead .kick{font-family:var(--sans);font-size:13px;font-weight:600;margin:0 0 6px}
 .ahead .kick span{font-weight:400;color:var(--ink-3)}
 .ahead h1{font-family:var(--serif);font-weight:700;font-size:46px;line-height:1.04;letter-spacing:-.018em;margin:0 0 10px;font-variation-settings:"opsz" 72;text-wrap:balance}
 .dek{font-size:20px;line-height:1.5;margin:0;color:var(--ink-2);max-width:66ch}
-.figs{grid-column:1 / -1;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);margin-top:6px}
-.figs > div{padding:7px 14px 8px;border-left:1px solid var(--hair);min-width:0}
+/* siffrorna slutar i sektionslinjen (svart) i stället för en egen tunn linje 11 px ovanför den */
+.figs{grid-column:1 / -1;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border-top:1px solid var(--hair);border-bottom:1px solid var(--ink);margin-top:6px}
+.figs > div{padding:7px var(--luft) 8px;border-left:1px solid var(--hair);min-width:0}
 .figs > div:first-child{border-left:0;padding-left:0}
+.figs > div:last-child{padding-right:0}
 .figs .lab{font-family:var(--sans);font-size:12px;color:var(--ink-3);display:block}
 .figs .val{font-size:21px;font-weight:600;line-height:1.2;display:block}
 .figs .sub{font-family:var(--sans);font-size:11.5px;color:var(--ink-3);display:block}
@@ -205,9 +235,9 @@ details.numbers table{margin-top:8px;max-width:760px}
 .legend svg{flex:none;overflow:visible}
 .caption{font-size:15.5px;line-height:1.5;color:var(--ink-2);margin:8px 0 0;max-width:100ch}
 .caption b{color:var(--ink)}
-.twocol{grid-column:1 / -1;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:0 var(--gut);border-top:1px solid var(--ink);padding-top:14px;margin-top:10px}
-.yours{grid-column:1 / span 5;min-width:0}
-.check{grid-column:6 / span 7;border-left:1px solid var(--hair);padding-left:var(--gut);min-width:0}
+.twocol{grid-column:1 / -1;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));padding-top:14px}
+.yours{grid-column:1 / span 6;min-width:0;padding-right:var(--luft)}
+.check{grid-column:7 / span 6;border-left:1px solid var(--hair);padding-left:var(--luft);min-width:0}
 .yours h2,.check h2,.plan h2,.optbox h2{font-family:var(--sans);font-size:13px;font-weight:700;margin:0 0 9px}
 .yours dl{margin:0;display:grid;grid-template-columns:9em 1fr;gap:7px 12px}
 .yours dt{font-family:var(--sans);font-size:12px;color:var(--ink-3);padding-top:3px}
@@ -219,14 +249,16 @@ details.numbers table{margin-top:8px;max-width:760px}
 .verdict{font-family:var(--sans);font-size:12px;font-weight:700;padding-top:3px}
 .verdict.ok{color:var(--pos)} .verdict.na{color:var(--ink-3)} .verdict.bad{color:var(--neg)}
 .check q{font-style:italic;quotes:"”" "”"}
-.lowerpos{grid-column:1 / -1;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:0 var(--gut);border-top:1px solid var(--ink);margin-top:18px;padding:14px 0 16px;border-bottom:3px solid var(--ink)}
-.plan{grid-column:1 / span 5;min-width:0}
+.lowerpos{grid-column:1 / -1;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));border-top:1px solid var(--ink);margin-top:18px;border-bottom:3px solid var(--ink)}
+.plan{grid-column:1 / span 6;min-width:0;padding:14px var(--luft) 16px 0}
 .plan-body > div{border-bottom:1px solid var(--hair);padding:7px 0}
 .plan-body > div:first-child{border-top:1px solid var(--hair)}
+/* den sista rutans tunna linje stod 17 px ovanför den tjocka slutlinjen, som en dubbellinje */
+.plan-body > div:last-child{border-bottom:0;padding-bottom:0}
 .plan b{display:block;font-family:var(--sans);font-size:12px;color:var(--ink-3);font-weight:600}
 .plan p{margin:2px 0 0;font-style:italic;font-size:17px;line-height:1.45}
 .plan p.empty{font-style:normal;color:var(--ink-3)}
-.optbox{grid-column:6 / span 7;border-left:1px solid var(--hair);padding-left:var(--gut);min-width:0}
+.optbox{grid-column:7 / span 6;border-left:1px solid var(--hair);padding:14px 0 16px var(--luft);min-width:0}
 .optbox p{margin:0 0 8px;font-size:16px;line-height:1.5}
 .marks{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 10px}
 .mark{font-family:var(--sans);font-size:11.5px;font-weight:600;border:1px solid var(--rule);border-radius:3px;padding:2px 7px;color:var(--ink-2)}
@@ -236,12 +268,15 @@ details.numbers table{margin-top:8px;max-width:760px}
 .mhead{padding:22px 0 12px;border-bottom:1px solid var(--ink)}
 .mhead h1{font-family:var(--serif);font-weight:700;font-size:48px;line-height:1.04;letter-spacing:-.018em;margin:0 0 10px;font-variation-settings:"opsz" 72}
 .mhead p{font-size:20px;line-height:1.5;margin:0;max-width:64ch;color:var(--ink-2)}
-.mbody{display:grid;grid-template-columns:minmax(0,15em) minmax(0,1fr);gap:0 48px;padding-top:6px}
-.toc{position:sticky;top:12px;align-self:start;font-family:var(--sans);font-size:13px;padding-top:16px}
+/* texten står i kolumn 4–9: mitt under namnskylten och under Om-kolumnernas två mittersta; innehållet i kolumn 1–3 */
+.mbody{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));padding-top:6px}
+.toc{grid-column:1 / span 3;position:sticky;top:12px;align-self:start;font-family:var(--sans);font-size:13px;padding-top:21px}
+/* padding-top 21 (förut 16): innehållets första rad står på samma baslinje som första avsnittets rubrik (mätt 5 px isär) */
+.mbody > #metod{grid-column:4 / span 6;padding:0 var(--luft);min-width:0}
 .toc ol{list-style:none;margin:0;padding:0;display:grid;gap:7px}
 .toc a{text-decoration:none;color:var(--ink-2)}
 .toc a:hover{color:var(--ink);text-decoration:underline}
-.msec{border-bottom:1px solid var(--hair);padding:16px 0 18px;max-width:72ch}
+.msec{border-bottom:1px solid var(--hair);padding:16px 0 18px}
 .msec h2{font-family:var(--serif);font-weight:700;font-size:26px;line-height:1.15;margin:0 0 8px;font-variation-settings:"opsz" 48}
 .msec p{margin:0 0 10px;font-size:17.5px;line-height:1.58}
 .msec ul{margin:0 0 10px;padding-left:1.1em}
@@ -249,6 +284,8 @@ details.numbers table{margin-top:8px;max-width:760px}
 .msec table.t{margin:6px 0 12px;font-size:15px}
 .msec .src{font-family:var(--sans);font-size:12.5px;color:var(--ink-3)}
 .msec code{font-family:var(--sans);font-size:14px;background:var(--box);padding:0 4px;border-radius:2px}
+/* sista stycket behåller inte sin marginal: 35 px luft ovanför avsnittslinjen mot 17 px under den blev 25 mot 17 */
+.msec > :last-child,.msec > ul:last-child > li:last-child{margin-bottom:0}
 
 /* ---------- rörelse: rubriken trycks och kurvan ritas, en gång ---------- */
 @media (prefers-reduced-motion:no-preference){
@@ -263,26 +300,43 @@ details.numbers table{margin-top:8px;max-width:760px}
 /* ---------- smalare skärmar ---------- */
 @media (max-width:1180px){
   .strip{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .cell:nth-child(4){border-left:0;padding-left:0}
+  .cell:nth-child(3n+1){border-left:0;padding-left:0}
+  .cell:nth-child(3n){padding-right:0}
   .cell:nth-child(n+4){border-top:1px solid var(--hair)}
   .lead{grid-column:1 / -1;padding-right:0}
-  .rail{grid-column:1 / -1;border-left:0;padding-left:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 var(--gut);border-top:1px solid var(--hair);margin-top:14px;padding-top:12px}
-  .rail .graphic{border-top:0;margin-top:0;padding-top:0}
-  .desk{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .story,.story:first-child,.story:last-child{border-left:0;padding:12px 16px 14px 0;border-top:1px solid var(--hair)}
-  .story:nth-child(even){border-left:1px solid var(--hair);padding-left:16px}
+  /* mätaren och staplarna sida vid sida, med linjen mellan dem som linjerna i resten av sidan */
+  .rail{grid-column:1 / -1;border-left:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--hair);margin-top:14px}
+  .rail .graphic,.rail .graphic:first-child{border-top:0;margin:0;padding:12px var(--luft) 12px 0}
+  .rail .graphic + .graphic{border-left:1px solid var(--hair);margin:0;padding:12px 0 12px var(--luft)}
+  /* fem puffar på sex kolumner: de två största överst på halva bredden var, de tre andra under på en tredjedel var,
+     så att ingen rad har en tom halva (förut stod den femte ensam) */
+  .desk{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .story{grid-column:span 2}
+  .story:nth-child(-n+2){grid-column:span 3}
+  .story,.story:first-child,.story:last-child{border-left:0;padding:12px var(--luft) 14px;border-top:1px solid var(--hair)}
+  .story:nth-child(-n+2){border-top:0}
+  .story:nth-child(1),.story:nth-child(3){padding-left:0}
+  .story:nth-child(2),.story:nth-child(5){padding-right:0}
+  .story:nth-child(2),.story:nth-child(4),.story:nth-child(5){border-left:1px solid var(--hair)}
   .facts{display:grid}
   .listwrap{display:none}
-  .brief{grid-column:1 / -1}
-  .calendar{grid-column:1 / span 6;border-left:0;padding-left:0;margin-top:14px}
-  .markets{grid-column:7 / span 6;margin-top:14px}
+  /* I korthet över hela bredden med raderna i två spalter; under den Kalendern (5) och Marknaderna (7): kalendern blir
+     smalare och därmed längre, så att de två slutar närmare varandra (mätt: högst 72 px isär mot 114 px med 6 + 6) */
+  .lower{grid-template-rows:auto auto}
+  .lower > .brief{grid-column:1 / -1;padding:12px 0 14px;border-bottom:1px solid var(--hair)}
+  .lower > .calendar{grid-column:1 / span 5;grid-row:2;padding:12px var(--luft) 4px 0}
+  .lower > .markets{grid-column:6 / span 7;grid-row:2}
+  .lower .markets table.t td{padding:4px 0}
   .ahead{grid-column:1 / -1}
   .figs{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .figs > div:nth-child(4){border-left:0;padding-left:0}
+  .figs > div:nth-child(3n+1){border-left:0;padding-left:0}
+  .figs > div:nth-child(3n){padding-right:0}
   .figs > div:nth-child(n+4){border-top:1px solid var(--hair)}
+  .mbody > #metod{grid-column:4 / -1;padding-right:0}
+  .msec{max-width:72ch}
 }
 @media (max-width:760px){
-  :root{--pad:16px;--gut:16px}
+  :root{--pad:16px;--gut:16px;--luft:14px}
   body{font-size:16px}
   .topbar{flex-wrap:wrap;gap:6px 10px;padding:6px 0}
   .topbar .tag{flex-basis:100%}
@@ -291,28 +345,36 @@ details.numbers table{margin-top:8px;max-width:760px}
   .ear,.ear.right{text-align:center}
   .ear.left{order:2} .ear.right{order:3}
   .nameplate{font-size:50px;order:1}
+  /* remsan: avkastningen över hela bredden, sedan två och två; går resten inte jämnt ut tar den sista hela bredden,
+     så att ingen rad har en tom halva */
   .strip{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .cell,.cell:first-child{border-left:0;padding-left:0;border-top:1px solid var(--hair)}
-  .cell:first-child{grid-column:1 / -1;border-top:0}
-  .cell:nth-child(odd):not(:first-child){border-left:1px solid var(--hair);padding-left:14px}
-  .cell:nth-child(4){border-left:0;padding-left:0}
+  .cell,.cell:first-child{border-left:0;padding-left:0;padding-right:var(--luft);border-top:1px solid var(--hair)}
+  .cell:first-child{grid-column:1 / -1;border-top:0;padding-right:0}
+  .cell:nth-child(odd):not(:first-child){border-left:1px solid var(--hair);padding-left:var(--luft);padding-right:0}
+  .cell:last-child:nth-child(even){grid-column:1 / -1;padding-right:0}
   .lead h1{font-size:33px}
   .lede{font-size:17.5px}
   .rail{grid-template-columns:minmax(0,1fr)}
-  .rail .graphic + .graphic{border-top:1px solid var(--hair);margin-top:12px;padding-top:10px}
+  .rail .graphic,.rail .graphic:first-child{padding:12px 0}
+  .rail .graphic + .graphic{border-left:0;border-top:1px solid var(--hair);padding:12px 0}
   .desk{grid-template-columns:1fr}
-  .story,.story:nth-child(even){border-left:0;padding:14px 0;border-top:1px solid var(--hair)}
+  .story,.story:nth-child(n){grid-column:1 / -1;border-left:0;padding:14px 0;border-top:1px solid var(--hair)}
+  .story:first-child{border-top:0}
   .quote{-webkit-line-clamp:unset;display:block}
-  .brief .head{grid-template-columns:1fr}
-  .calendar,.markets{grid-column:1 / -1;border-left:0;padding-left:0}
+  .brief .lines{columns:auto}
+  .lower > .calendar,.lower > .markets{grid-column:1 / -1;grid-row:auto;border-left:0;padding-left:0;padding-right:0}
+  .lower > .markets{border-top:1px solid var(--hair)}
   .ahead h1{font-size:34px}
   .dek{font-size:18px}
   .figs{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .figs > div,.figs > div:first-child{border-left:0;padding-left:0;border-top:1px solid var(--hair)}
-  .figs > div:nth-child(even){border-left:1px solid var(--hair);padding-left:14px}
+  .figs > div,.figs > div:first-child{border-left:0;padding-left:0;padding-right:var(--luft);border-top:1px solid var(--hair)}
+  .figs > div:nth-child(even){border-left:1px solid var(--hair);padding-left:var(--luft);padding-right:0}
   .figs > div:nth-child(-n+2){border-top:0}
   .yours,.check,.plan,.optbox{grid-column:1 / -1}
+  .yours,.plan{padding-right:0}
   .check,.optbox{border-left:0;padding-left:0;margin-top:16px}
+  .mbody > #metod{grid-column:1 / -1;padding:0}
+  .toc{grid-column:1 / -1}
   .check li{grid-template-columns:1fr;gap:2px}
   .yours dl{grid-template-columns:1fr;gap:0}
   .yours dt{padding-top:8px}
@@ -326,7 +388,11 @@ details.numbers table{margin-top:8px;max-width:760px}
 }
 
 /* ---------- bloggen (publikläget): notisen, Senaste, källorna och Om-kolumnerna ---------- */
-.notis{border:1px solid var(--ink);background:var(--box);padding:14px 18px 12px;margin:12px 0 4px;max-width:74ch}
+/* notisen går över hela bredden (2026-10-06): texten till vänster i läsbar bredd, knapparna längst till höger i höjd
+   med sista raden; förut slutade rutan vid 74 tecken och lämnade halva raden tom */
+.notis{border:1px solid var(--ink);background:var(--box);padding:14px 18px 12px;margin:12px 0 4px;display:grid;grid-template-columns:minmax(0,74ch) auto;justify-content:space-between;align-items:end;column-gap:var(--gut)}
+.notis > h2,.notis > p{grid-column:1}
+.notis > .notis-rad{grid-column:2;grid-row:1 / span 2;margin-top:0;align-self:center}
 .notis h2{font-family:var(--serif);font-weight:700;font-size:24px;line-height:1.15;margin:0 0 4px;font-variation-settings:"opsz" 48}
 .notis p{margin:0;font-size:16.5px;line-height:1.5}
 .notis .notis-rad{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;margin-top:10px;font-family:var(--sans);font-size:13px}
@@ -336,10 +402,21 @@ details.numbers table{margin-top:8px;max-width:760px}
 .senaste{font-size:14.5px;line-height:1.42;color:var(--ink-2);margin:0 0 6px}
 .plan p.plain{font-style:normal}
 .kallor{font-family:var(--sans);font-size:12px;color:var(--ink-3);margin:8px 0 0;line-height:1.5}
+/* källraden i Senaste ärvde .plan p (kursiv 17 px, starkare regel) och såg ut som brödtext; nu som källor överallt */
+.plan p.kallor{font-style:normal;font-size:12px;line-height:1.5;margin-top:8px}
 .kallor a{color:var(--ink-2)}
 .optbox p.muted a,.msec .src a{color:var(--ink-2)}
 /* positionssidan, publikt: tankarna i bloggformat i stället för kortets fält och faktakollen */
 .twocol.blogg .yours,.twocol.blogg .check{display:none}
+/* publikt (2026-10-06): tankarna över hela bredden (förut två tredjedelar med resten tom), sedan Senaste (5) och
+   riktkursen (7) med gemensam överkant, som förut. Två blinda granskningar (Codex) föredrog 5 + 7 framför både
+   tankar + senaste mot riktkursen och 4 + 8: Senaste behöver bredden, och spalterna slutar mer lika. */
+.twocol.blogg{grid-column:1 / -1;grid-row:4;display:block;padding:14px 0 0}
+.twocol.blogg ~ .lowerpos{display:contents}
+.twocol.blogg ~ .lowerpos > .plan,.twocol.blogg ~ .lowerpos > .optbox{grid-row:5;margin-top:6px;padding-bottom:12px;border-top:1px solid var(--ink);border-bottom:3px solid var(--ink)}
+#opt-body > :last-child{margin-bottom:0}
+.twocol.blogg ~ .lowerpos > .plan{grid-column:1 / span 5}
+.twocol.blogg ~ .lowerpos > .optbox{grid-column:6 / span 7}
 .tankar{grid-column:1 / span 8;min-width:0}
 .tankar h2{font-family:var(--sans);font-size:13px;font-weight:700;margin:0 0 9px}
 .tankar .post{border-top:1px solid var(--hair);padding:7px 0 6px}
@@ -348,21 +425,40 @@ details.numbers table{margin-top:8px;max-width:760px}
 .tankar .post p{margin:3px 0 0;font-size:17px;line-height:1.5;max-width:68ch}
 .tankar .empty{margin:0;color:var(--ink-3)}
 .om-kol{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--ink)}
-.om-kol > div{padding:14px 16px 16px;border-left:1px solid var(--hair);min-width:0}
+/* Läs mer står längst ned i varje kolumn, på samma linje i hela raden */
+.om-kol > div{padding:14px var(--luft) 16px;border-left:1px solid var(--hair);min-width:0;display:flex;flex-direction:column}
 .om-kol > div:first-child{border-left:0;padding-left:0}
+.om-kol > div:last-child{padding-right:0}
+.om-kol > div > a{margin-top:auto;align-self:flex-start}
 .om-kol h2{font-family:var(--serif);font-weight:700;font-size:22px;line-height:1.15;margin:0 0 6px;font-variation-settings:"opsz" 36}
 .om-kol p{margin:0 0 8px;font-size:16px;line-height:1.5}
 .om-kol a{font-family:var(--sans);font-size:13px;color:var(--ink-2)}
 @media (max-width:1180px){
   .om-kol{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+/* positionssidan, publikt, under 920 px: Senaste blir på fyra tolftedelar för smal för brödtext (213–257 px), så
+   Senaste och riktkursen står under varandra över hela bredden, som i mobilen */
+@media (max-width:919px){
+  .twocol.blogg ~ .lowerpos > .plan,.twocol.blogg ~ .lowerpos > .optbox{grid-column:1 / -1}
+  .twocol.blogg ~ .lowerpos > .plan{padding-right:0;border-bottom:0}
+  .twocol.blogg ~ .lowerpos > .optbox{grid-row:6;margin-top:0;padding-left:0;border-left:0;border-top:1px solid var(--hair)}
+  .twocol.blogg ~ .lowerpos > .plan .plain,.twocol.blogg ~ .lowerpos > .optbox p{max-width:68ch}
   .om-kol > div:nth-child(3){border-left:0;padding-left:0}
+  .om-kol > div:nth-child(2n){padding-right:0}
   .om-kol > div:nth-child(n+3){border-top:1px solid var(--hair)}
 }
 @media (max-width:760px){
   .tankar{grid-column:1 / -1}
-  .notis{padding:12px 14px}
+  /* publikt: tankarna, senaste och riktkursen under varandra; den tjocka linjen bara under den sista. Står här, efter
+     grundreglerna ovan, eftersom de har samma specificitet (i det första mobilblocket vann grundreglerna) */
+  .twocol.blogg,.twocol.blogg ~ .lowerpos > .plan,.twocol.blogg ~ .lowerpos > .optbox{grid-column:1 / -1;grid-row:auto}
+  .twocol.blogg{padding-right:0}
+  .twocol.blogg ~ .lowerpos > .plan{padding-right:0;border-bottom:0}
+  .twocol.blogg ~ .lowerpos > .optbox{margin-top:0;padding-left:0;border-left:0;border-top:1px solid var(--hair)}
+  .notis{padding:12px 14px;grid-template-columns:minmax(0,1fr)}
+  .notis > .notis-rad{grid-column:1;grid-row:auto;margin-top:10px}
   .om-kol{grid-template-columns:1fr}
-  .om-kol > div,.om-kol > div:nth-child(3){border-left:0;padding-left:0;border-top:1px solid var(--hair)}
+  .om-kol > div,.om-kol > div:nth-child(3){border-left:0;padding-left:0;padding-right:0;border-top:1px solid var(--hair)}
   .om-kol > div:first-child{border-top:0}
 }
 
