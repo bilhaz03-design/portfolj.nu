@@ -169,7 +169,7 @@
   if (sida === 'forsta') {
     document.querySelectorAll('#strip .cell .val').forEach((v, i) => rakneverk(v, 300 + i * 80));
     satt($('headline'), 430);
-    klass('.notis', 'wow-fram', 260);
+    klass('.notis, .inl-topp', 'wow-fram', 260);
     klass('.lede, .byline', 'wow-fram', 760);
     klass('.lead .ghead, .lead .gsub, details.numbers, .rail .ghead, .rail .gsub, .keys, .gauge-note', 'wow-fram', 820);
     // staplarna ritas när typsnitten har laddats; de växer på sin planerade tid, eller direkt om den redan passerat

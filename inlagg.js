@@ -109,18 +109,19 @@
     T.dom.footer(document.getElementById('foot'));
   }
 
-  /* förstasidan: puffen under I korthet, ritad om när tidningen ritar om (språk, färgläge) */
+  /* förstasidan: en rad ovanför remsan som pekar på det senaste inlägget, så att det syns på första skärmen (mätt 2026-10-06:
+     rutan under I korthet låg 1,5 skärmar ner på datorn och 5 i mobilen). Ritas om när tidningen ritar om. */
   function puff() {
-    const brief = document.querySelector('.lower .brief'); if (!brief) return;
-    const p = INL[0]; let box = brief.querySelector('.inl-puff');
-    if (!box) { box = el('aside', 'inl-puff'); brief.append(box); }
+    const strip = document.getElementById('strip'); if (!strip) return;
+    const p = INL[0]; let box = document.querySelector('.inl-topp');
+    if (!box) { box = el('aside', 'inl-topp'); strip.before(box); }
     box.textContent = ''; box.setAttribute('aria-label', L('Utanför portföljen', 'Outside the portfolio'));
-    box.append(el('p', 'inl-kick', L('Utanför portföljen', 'Outside the portfolio')));
-    const h = el('p', 'inl-puff-h'), a = el('a', null, p.rubrik); a.href = T.href('inlagg.html', p.id); a.lang = 'sv'; h.append(a); box.append(h);
-    const t = el('p', 'inl-puff-t'), tm = el('time', null, dag(p.datum, false)), ing = el('span', null, forstaMeningen(p.stycken[0]));
-    tm.setAttribute('datetime', p.datum); ing.lang = 'sv'; t.append(tm, ing);
-    if (T.en()) { const not = el('span', 'inl-sprak', 'In Swedish.'); not.lang = 'en'; t.append(not); }
-    box.append(t);
+    const a = el('a'); a.href = T.href('inlagg.html', p.id);
+    const h = el('span', 'inl-topp-h', p.rubrik), ing = el('span', 'inl-topp-t', forstaMeningen(p.stycken[0])), tm = el('time', null, dag(p.datum, false));
+    h.lang = 'sv'; ing.lang = 'sv'; tm.setAttribute('datetime', p.datum);
+    a.append(el('span', 'inl-topp-k', L('Utanför portföljen', 'Outside the portfolio')), document.createTextNode(' '), h, document.createTextNode(' '), ing, document.createTextNode(' '), tm);
+    if (T.en()) { const not = el('span', 'inl-sprak', 'In Swedish'); not.lang = 'en'; a.append(document.createTextNode(' '), not); }
+    box.append(a);
   }
 
   if (document.getElementById('inlaggen')) { sida(); T.onResize(() => INL.forEach(p => graf(document.getElementById('graf-' + p.id), p.graf))); }

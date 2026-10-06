@@ -10,7 +10,7 @@
 html.wow-intro .rules { transform: scaleX(0); }
 html.wow-intro .nameplate { opacity: 0; }
 html.wow-intro .ear, html.wow-intro .topbar .tag, html.wow-intro .topbar .ctrls { opacity: 0; }
-html.wow-intro .lede, html.wow-intro .byline, html.wow-intro .notis,
+html.wow-intro .lede, html.wow-intro .byline, html.wow-intro .notis, html.wow-intro .inl-topp,
 html.wow-intro .rail .ghead, html.wow-intro .rail .gsub, html.wow-intro .keys, html.wow-intro .gauge-note,
 html.wow-intro .lead .ghead, html.wow-intro .lead .gsub, html.wow-intro details.numbers { opacity: 0; }
 /* tidningens egna toningar stängs av under introt (en animation går före opacity); lagrets egna ligger kvar inline efteråt */

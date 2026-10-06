@@ -25,14 +25,15 @@
 .inl-graf details.numbers table td, .inl-graf details.numbers table th { font-variant-numeric: tabular-nums; }
 .inl-innehav { font-size: 16px; margin: 0 0 6px; }
 .inl-kallor { margin: 0; }
-/* förstasidan: puffen under I korthet */
-.brief .inl-puff { border-top: 1px solid var(--hair); margin-top: 14px; padding-top: 10px; max-width: 420px; }
-.inl-puff .inl-kick { font-size: 12px; border-top-width: 2px; padding-top: 5px; margin-bottom: 4px; }
-.inl-puff-h { font-family: var(--serif); font-size: 22px; font-weight: 700; line-height: 1.15; margin: 4px 0 6px; }
-.inl-puff-h a { text-decoration: none; }
-.inl-puff-h a:hover { text-decoration: underline; }
-.inl-puff-t { font-size: 15px; color: var(--ink-2); margin: 0; display: grid; gap: 4px; }
-.inl-puff-t time { font-family: var(--sans); font-size: 12px; font-weight: 600; color: var(--ink-3); }
+/* förstasidan: raden ovanför remsan */
+.inl-topp { border-bottom: 1px solid var(--hair); padding: 9px 0 10px; }
+.inl-topp a { display: flex; align-items: baseline; gap: 2px 12px; text-decoration: none; color: var(--ink); min-width: 0; }
+.inl-topp-k { font-family: var(--sans); font-size: 12px; font-weight: 700; color: var(--ink-2); white-space: nowrap; }
+.inl-topp-h { font-family: var(--serif); font-size: 18px; font-weight: 700; white-space: nowrap; }
+.inl-topp a:hover .inl-topp-h { text-decoration: underline; }
+.inl-topp-t { font-size: 15px; color: var(--ink-2); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inl-topp time, .inl-topp .inl-sprak { font-family: var(--sans); font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+@media (max-width: 760px) { .inl-topp a { flex-wrap: wrap; } .inl-topp-t { display: none; } .inl-topp-h { white-space: normal; } }
 @media (max-width: 760px) {
   .inlagg h1 { font-size: 34px; }
   .inl-text p { font-size: 18px; }
