@@ -120,6 +120,9 @@ const onDay = s => (en() ? 'on ' + wd(s) : 'i ' + wd(s) + 's');
 
 /* ================= domänen ================= */
 const P = S.portfolio, POS = S.positions.slice();
+/* MSCI publicerar dagens nivå efter midnatt; kvällskörningen 22:30 skattar den ur URTH och märker den (meta.msci_prel, 2026-10-06) */
+const MP = (S.meta && S.meta.msci_prel) || null;
+const mpNot = () => MP ? L(' MSCI:s nivå för ' + wd(MP.datum) + ' är preliminär, skattad ur börsfonden URTH; den rättas när MSCI publicerar efter midnatt.', " MSCI's level for " + wd(MP.datum) + ' is preliminary, estimated from the URTH fund; it is corrected when MSCI publishes after midnight.') : '';
 const BYW = POS.slice().sort((a, b) => b.weight - a.weight);
 const pos = id => POS.find(p => p.id === id) || null;
 const ASOF = POS.map(p => p.asof).filter(Boolean).sort().pop();
@@ -290,7 +293,7 @@ function ledePub(ed) {
 }
 function briefPub() {
   // publikläget har bara kvällsupplagan (2026-10-05): dagens rörelser, läget mot världsindex och nästa rapporter
-  const ev = events(), lead = L('Mot MSCI World: ' + ppS(P.ret - P.msci_ret) + ' sedan köpen.', 'Against MSCI World: ' + ppS(P.ret - P.msci_ret) + ' since the purchases.');
+  const ev = events(), lead = L('Mot MSCI World: ' + ppS(P.ret - P.msci_ret) + ' sedan köpen.', 'Against MSCI World: ' + ppS(P.ret - P.msci_ret) + ' since the purchases.') + mpNot();
   const mv = maxBy(POS, p => Math.abs(p.day_local));
   const s1 = L('Största rörelsen var ' + nm(mv) + ', ' + pctS(mv.day_local) + '. Hela portföljen ' + pctS(P.day_ret) + '.', 'The biggest move was ' + prose(mv) + ', ' + pctS(mv.day_local) + '. The whole portfolio ' + pctS(P.day_ret) + '.');
   const s3 = ev.length ? L('Nästa rapporter: ', 'Next reports: ') + evList(ev.slice(0, 4)) + '.' + medNot(ev.slice(0, 4)) : L('Inga rapportdatum i datan.', 'No report dates in the data.');
@@ -923,7 +926,7 @@ function strip(host) {
   if (pub()) {
     cell(L('Avkastning', 'Return'), pctS(P.ret), L('på vad köpen kostade', 'on what the purchases cost'));
     cell(cap(wd(ASOF)), pctS(P.day_ret), L('på dagen', 'on the day'), P.day_ret >= 0 ? 'pos' : 'neg');
-    cell(L('Mot MSCI World', 'vs MSCI World'), ppS(P.ret - P.msci_ret), L('index gav ' + pctS(P.msci_ret) + ' på samma insats', 'the index made ' + pctS(P.msci_ret) + ' on the same money'));
+    cell(L('Mot MSCI World', 'vs MSCI World'), ppS(P.ret - P.msci_ret), L('index gav ' + pctS(P.msci_ret) + ' på samma insats' + (MP ? ', MSCI prel.' : ''), 'the index made ' + pctS(P.msci_ret) + ' on the same money' + (MP ? ', MSCI prelim.' : '')));
     const ev = events()[0];
     cell(L('Nästa rapport', 'Next report'), ev ? dS(ev.d) : '—', ev ? evName(ev) + (ev.inner ? L(' (i ' + nm(ev.p) + ')', ' (in the ' + nm(ev.p) + ')') : '') + (ev.est ? L(', prel. datum', ', prelim. date') : '') : '');
     const big = BYW[0]; cell(L('Största vikt', 'Largest weight'), nm(big) + ' ' + pctU(big.weight, 0), L(POS.length + ' innehav', POS.length + ' holdings'));
