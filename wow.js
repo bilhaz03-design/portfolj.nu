@@ -6,7 +6,7 @@
    tillbaka text i ett element som tidningen hunnit rita om (språk, färgläge, en annan position). */
 
 /* ---- basen ---- */
-/* Det gemensamma för lagren. Introt spelas en gång per flik och sida (sidans huvud sätter klassen wow-intro), inte när
+/* Det gemensamma för lagren. Introt spelas första gången per webbläsare och sida (sidans huvud sätter klassen wow-intro), inte när
    systemet ber om mindre rörelse; ?spela=1 spelar det ändå och ?spela=0 stänger av det. */
 (function (root) {
   'use strict';
@@ -18,7 +18,7 @@
   W.intro = () => document.documentElement.classList.contains('wow-intro');
   W.introKlart = () => {
     document.documentElement.classList.remove('wow-intro');
-    try { sessionStorage.setItem('wow.intro.' + location.pathname, '1'); } catch (e) { /* privat läge */ }
+    try { localStorage.setItem('wow.intro.' + location.pathname.replace(/\/index\.html$/, '/'), '1'); } catch (e) { /* privat läge */ }
   };
   W.ease = {
     ut: t => 1 - Math.pow(1 - t, 3),
