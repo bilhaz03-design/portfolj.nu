@@ -2,9 +2,15 @@
 <html lang="sv" data-upplaga="morgon" data-tema="ljus">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-yNNZuoKzsgXsuVcPRx/MwLX3IZPMnF91Gwi0AlOd+pw=' 'sha256-4cR6Da5ETjnYftuROiI3VL/cuUccdMUCxvDBPxYOQP8='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-So0dkwRBRQKuEDtyNRmO5ma4KXCM/oYN8wdBAyghaVc=' 'sha256-yNNZuoKzsgXsuVcPRx/MwLX3IZPMnF91Gwi0AlOd+pw=' 'sha256-4cR6Da5ETjnYftuROiI3VL/cuUccdMUCxvDBPxYOQP8='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex">
+<script>
+/* Rörelsen (wow.js): introt spelas en gång per flik och sida. Klassen sätts före första målningen, så att sidan inte
+   blinkar färdig innan den trycks. Minska rörelse stänger av introt; ?spela=1 spelar det ändå och ?spela=0 stänger av
+   det. Efter fyra sekunder tas klassen bort, också om wow.js aldrig körs. */
+(function () { try { var q = new URLSearchParams(location.search), s = q.get('spela'), rm = matchMedia('(prefers-reduced-motion: reduce)').matches, k = 'wow.intro.' + location.pathname; if (s === '1' || (!rm && s !== '0' && !sessionStorage.getItem(k))) { document.documentElement.classList.add('wow-intro'); setTimeout(function () { document.documentElement.classList.remove('wow-intro'); }, 4000); } } catch (e) {} })();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Positionen · Portföljen</title>
 <meta name="description" content="En position i Portföljen: grafen med optionernas solfjäder, tankarna, senaste händelsen och riktkursen.">
@@ -32,6 +38,7 @@
 </script>
 <link rel="stylesheet" href="fonts/fonts.css">
 <link rel="stylesheet" href="tidning.css">
+<link rel="stylesheet" href="wow.css">
 <style>.masthead.small{padding-top:10px}.masthead.small .nameplate{font-size:44px}@media (max-width:760px){.masthead.small .nameplate{font-size:38px}}</style>
 </head>
 <body>
@@ -84,5 +91,6 @@
   window.addEventListener('hashchange', () => T.positionssida());
 })();
 </script>
+<script src="wow.js"></script>
 </body>
 </html>

@@ -2,9 +2,15 @@
 <html lang="sv" data-upplaga="morgon" data-tema="ljus">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-yNNZuoKzsgXsuVcPRx/MwLX3IZPMnF91Gwi0AlOd+pw=' 'sha256-QGBVy5JGhXgs/5g8xiaxCwbHFsLZkz5L8SoY+8sWM4Q='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-So0dkwRBRQKuEDtyNRmO5ma4KXCM/oYN8wdBAyghaVc=' 'sha256-yNNZuoKzsgXsuVcPRx/MwLX3IZPMnF91Gwi0AlOd+pw=' 'sha256-QGBVy5JGhXgs/5g8xiaxCwbHFsLZkz5L8SoY+8sWM4Q='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex">
+<script>
+/* Rörelsen (wow.js): introt spelas en gång per flik och sida. Klassen sätts före första målningen, så att sidan inte
+   blinkar färdig innan den trycks. Minska rörelse stänger av introt; ?spela=1 spelar det ändå och ?spela=0 stänger av
+   det. Efter fyra sekunder tas klassen bort, också om wow.js aldrig körs. */
+(function () { try { var q = new URLSearchParams(location.search), s = q.get('spela'), rm = matchMedia('(prefers-reduced-motion: reduce)').matches, k = 'wow.intro.' + location.pathname; if (s === '1' || (!rm && s !== '0' && !sessionStorage.getItem(k))) { document.documentElement.classList.add('wow-intro'); setTimeout(function () { document.documentElement.classList.remove('wow-intro'); }, 4000); } } catch (e) {} })();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Portföljen</title>
 <meta name="description" content="Portföljen: ett öppet försök att slå världsindex MSCI World med fem positioner, skrivet av maskinen ur kurserna.">
@@ -32,6 +38,7 @@
 </script>
 <link rel="stylesheet" href="fonts/fonts.css">
 <link rel="stylesheet" href="tidning.css">
+<link rel="stylesheet" href="wow.css">
 </head>
 <body>
 <div class="sheet">
@@ -98,5 +105,6 @@
   T.forsta();
 })();
 </script>
+<script src="wow.js"></script>
 </body>
 </html>

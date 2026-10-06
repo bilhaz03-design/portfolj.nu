@@ -1,0 +1,55 @@
+/* wow.css: rörelsen på portfolj.nu (2026-10-06, valt ur galleriet koncept/v3-wow): Tryckningen och Loppet.
+   Lagret i wow.js; inget här ändrar sidan när introt inte spelas, utom Loppets graf och knapp. */
+
+/* ---- 1. Tryckningen ---- */
+/* Sidan trycks när läsaren kommer in. Ett enda förlopp, cirka två sekunder, en gång per flik.
+   Ordningen följer en tryckpress: linjerna dras, namnet färgas in, räkneverken rullar fram, rubriken sätts ord för
+   ord och staplarna växer. Efteråt är sidan exakt dagens tidning. */
+
+/* läget före tryckningen (bara när introt spelas; klassen sätts i sidans huvud före första målningen) */
+html.wow-intro .rules { transform: scaleX(0); }
+html.wow-intro .nameplate { opacity: 0; }
+html.wow-intro .ear, html.wow-intro .topbar .tag, html.wow-intro .topbar .ctrls { opacity: 0; }
+html.wow-intro .lede, html.wow-intro .byline, html.wow-intro .notis,
+html.wow-intro .rail .ghead, html.wow-intro .rail .gsub, html.wow-intro .keys, html.wow-intro .gauge-note,
+html.wow-intro .lead .ghead, html.wow-intro .lead .gsub, html.wow-intro details.numbers { opacity: 0; }
+/* tidningens egna toningar stängs av under introt (en animation går före opacity); lagrets egna ligger kvar inline efteråt */
+html.wow-intro .lead h1, html.wow-intro .lede, html.wow-intro .ahead h1 { animation: none; }
+html.wow-intro .dek, html.wow-intro .ahead .kick { opacity: 0; }
+
+/* inställningspanelen (z-index 30 i .ctrls) ska ligga över tidningshuvudet också medan introt animerar .ctrls och öronen:
+   en animation ger elementet ett eget lager, och då hamnade panelen under #ear-right (mätt 2026-10-06) */
+.topbar .ctrls { z-index: 31; }
+
+/* linjerna under tidningshuvudet dras från mitten och ut */
+.rules { transform-origin: 50% 50%; }
+@keyframes wow-dras { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* namnet färgas in som ett tryck: bläcket flyter först ut och drar sig sedan samman */
+@keyframes wow-trycks {
+  from { opacity: 0; transform: scale(1.035); letter-spacing: -.005em; text-shadow: 0 0 10px currentColor; }
+  55% { opacity: 1; text-shadow: 0 0 2px currentColor; }
+  to { opacity: 1; transform: none; letter-spacing: -.025em; text-shadow: none; }
+}
+@keyframes wow-fram { from { opacity: 0; } to { opacity: 1; } }
+
+/* räkneverken i remsan: varje siffra är ett hjul som rullar och stannar på sin siffra */
+.wow-odo { display: inline-block; height: 1.15em; overflow: hidden; vertical-align: top; position: relative; }
+.wow-odo > span { display: block; will-change: transform; }
+.wow-odo > span > i { display: block; height: 1.15em; font-style: normal; text-align: center; }
+
+/* rubriken sätts ord för ord: varje ord färgas in från suddigt till skarpt */
+.wow-ord { opacity: 0; filter: blur(5px); transition: opacity .38s ease-out, filter .38s ease-out; }
+.wow-ord.pa { opacity: 1; filter: none; }
+
+/* ---- 2. Loppet ---- */
+/* Huvudgrafen som ett lopp mellan portföljen och samma insats i MSCI World. */
+.wow-lopp { display: block; width: 100%; overflow: visible; touch-action: pan-y; }
+.wow-lopp .hit { cursor: ew-resize; }
+.wow-lopp .hit:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+/* avläsningen för skärmläsaren: läses upp men syns inte (samma tal står i grafen) */
+.wow-status { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+.wow-spela { all: unset; box-sizing: border-box; cursor: pointer; font-family: var(--sans); font-size: 12px; font-weight: 600; color: var(--ink-2);
+  padding: 3px 0; border-bottom: 1px solid var(--rule); }
+.wow-spela:hover { color: var(--ink); border-bottom-color: var(--ink); }
+.wow-spela:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
