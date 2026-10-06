@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="sv" data-upplaga="morgon" data-tema="ljus">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-yNNZuoKzsgXsuVcPRx/MwLX3IZPMnF91Gwi0AlOd+pw='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Utanför portföljen · Portföljen</title>
+<meta name="description" content="Utanför portföljen: fristående inlägg om marknaderna, skrivna för hand. Guldets nedgång i september mot räntor, dollar och Nasdaq.">
+<script>
+/* Färgläget sätts före första målningen, så att mörkt läge inte blinkar vitt. Samma ordning som tidning.js.
+   Sajten och konceptets publikläge: bara kvällsupplagan, ljust som förval, mörkt om ?tema=mork eller det sparade
+   valet säger det. Konceptets egen vy: upplagan ur adressen, det sparade valet eller systemet, och ljuset följer den. */
+(function () {
+  var PUBLIK = true;  /* bygg-publik.py sätter true på sajten */
+  var d = document.documentElement, q = null;
+  try { q = new URLSearchParams(location.search); } catch (e) {}
+  if (PUBLIK || (q && q.get('publik') === '1')) {
+    var t = q && q.get('tema');
+    if (t !== 'ljus' && t !== 'mork') { try { t = localStorage.getItem('portfoljen.v2.tema'); } catch (e) { t = null; } }
+    d.setAttribute('data-upplaga', 'kvall');
+    d.setAttribute('data-tema', t === 'mork' ? 'mork' : 'ljus');
+    return;
+  }
+  var u = q && q.get('upplaga');
+  if (u !== 'morgon' && u !== 'kvall') { try { u = localStorage.getItem('portfoljen.v2.upplaga'); } catch (e) { u = null; } }
+  if (u !== 'morgon' && u !== 'kvall') { try { u = matchMedia('(prefers-color-scheme: dark)').matches ? 'kvall' : 'morgon'; } catch (e) { u = 'morgon'; } }
+  d.setAttribute('data-upplaga', u);
+  d.setAttribute('data-tema', u === 'kvall' ? 'mork' : 'ljus');
+})();
+</script>
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="tidning.css">
+<link rel="stylesheet" href="inlagg.css">
+</head>
+<body>
+<div class="sheet">
+  <div class="topbar"><span class="tag" id="tag"></span><div class="ctrls" id="ctrls"></div></div>
+  <header class="masthead small" aria-label="Tidningshuvud">
+    <div class="ear left" id="ear-left"></div>
+    <p class="nameplate"><a href="index.html">Portföljen</a></p>
+    <div class="ear right" id="ear-right"></div>
+  </header>
+  <div class="rules" aria-hidden="true"></div>
+  <main id="inlaggen" aria-label="Utanför portföljen"></main>
+  <footer class="foot" id="foot"></footer>
+</div>
+<noscript><p style="padding:24px 40px">Inläggen behöver JavaScript. The posts need JavaScript.</p></noscript>
+<script src="data.js"></script>
+<script src="blogg.js"></script>
+<script src="tidning.js"></script>
+<script src="inlagg-data.js"></script>
+<script src="inlagg.js"></script>
+</body>
+</html>
