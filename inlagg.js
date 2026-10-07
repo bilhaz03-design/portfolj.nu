@@ -101,6 +101,24 @@
     return a;
   }
 
+  /* kommentarerna (2026-10-08): GitHub Discussions i organisationen portfolj-nu via giscus, bara på inläggets egen sida.
+     giscus.js ligger på sajten; ramen kommer från giscus.app, det enda CSP:n släpper in där, och giscus.json i repot
+     tillåter bara https://portfolj.nu. Giscus finns inte på svenska (giscus.app/sv/widget gav 404). */
+  const KOMMENTARER = { repo: 'portfolj-nu/kommentarer', repoId: 'R_kgDOVALYew', category: 'Announcements', categoryId: 'DIC_kwDOVALYe84DHS28' };
+  function kommentarer(p) {
+    const s = el('section', 'inl-kommentarer'); s.setAttribute('aria-label', L('Kommentarer', 'Comments'));
+    s.append(el('h2', null, L('Kommentarer', 'Comments')),
+      el('p', 'inl-kom-not', L('Kommentera med ditt GitHub-konto. Kommentarerna sparas i GitHub Discussions.', 'Comment with your GitHub account. Comments are stored in GitHub Discussions.')),
+      el('div', 'giscus'));
+    const sc = document.createElement('script'), mork = document.documentElement.getAttribute('data-tema') === 'mork';
+    sc.src = 'giscus.js'; sc.async = true;
+    Object.entries({ repo: KOMMENTARER.repo, repoId: KOMMENTARER.repoId, category: KOMMENTARER.category, categoryId: KOMMENTARER.categoryId,
+      mapping: 'specific', term: p.id, strict: '1', reactionsEnabled: '1', emitMetadata: '0', inputPosition: 'top',
+      theme: mork ? 'noborder_dark' : 'noborder_light', lang: 'en', loading: 'lazy' }).forEach(([k, v]) => { sc.dataset[k] = v; });
+    s.append(sc);
+    return s;
+  }
+
   /* bloggens historik: alla inlägg, nyast först, datum och rubrik som länkar till inläggets egen sida (2026-10-07);
      överst i flödet och under inlägget på en inläggssida, där det aktuella är märkt */
   function arkiv(aktuell) {
@@ -128,6 +146,7 @@
     T.dom.controls(document.getElementById('ctrls'), ch => { T.setState(ch, true); sida(); });
     T.dom.ears(document.getElementById('ear-left'), document.getElementById('ear-right'), T.upplaga());
     host.textContent = ''; if (!id && INL.length > 1) host.append(arkiv()); lista.forEach(p => host.append(artikel(p)));
+    if (id) host.append(kommentarer(lista[0]));
     if (id && INL.length > 1) host.append(arkiv(id));
     lista.forEach(p => graf(document.getElementById('graf-' + p.id), p.graf));
     T.dom.footer(document.getElementById('foot'));
