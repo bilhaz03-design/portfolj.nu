@@ -104,6 +104,17 @@ a{color:inherit}
 .rail{display:flex;flex-direction:column}
 .rail .graphic:first-child{margin-bottom:14px}
 .rail .graphic + .graphic{margin-top:auto}
+/* 2026-10-07, ägarens ord: "webbsidan känns lite inzoomad, kan vi zooma ut typ 10-15%", så att första skärmen når ned
+   till Talen bakom kurvan och linjen under raden. I Chrome 1512 × 771 stod linjen 891 px ned; 0,85 lägger den på 757.
+   Bara breda skärmar: surfplatta och mobil behåller storleken. Muspositionerna räknas som andelar av getBoundingClientRect
+   och följer med zoomen; räkneverket i wow.js delar med currentCSSZoom. Luften i högerspalten (104 px under mätarens
+   förklaring, skärmbilden 13:38) delas lika över och under mätaren; rubriken står kvar överst, staplarna mot foten. */
+@media (min-width:1181px){
+  html{zoom:.85}
+  .rail .graphic:first-child{flex:1 0 auto;display:flex;flex-direction:column}
+  .rail .graphic:first-child .chartwrap{margin-top:auto}
+  .rail .graphic:first-child > :last-child{margin-bottom:auto}
+}
 .chartwrap{position:relative}
 .chartwrap svg{display:block;width:100%;overflow:visible}
 .chartwrap:focus-within{outline:2px solid var(--ink);outline-offset:4px}

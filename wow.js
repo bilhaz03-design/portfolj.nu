@@ -115,7 +115,7 @@
   function rakneverk(val, ms) {
     const text = val.textContent, cs = getComputedStyle(val);
     const h = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.15;
-    const matt = ch => { const s = W.el('span', null, ch); s.style.visibility = 'hidden'; s.style.position = 'absolute'; val.append(s); const w = s.getBoundingClientRect().width; s.remove(); return w; };
+    const matt = ch => { const s = W.el('span', null, ch); s.style.visibility = 'hidden'; s.style.position = 'absolute'; val.append(s); const w = s.getBoundingClientRect().width / (val.currentCSSZoom || 1); s.remove(); return w; };  // zoom på breda skärmar (2026-10-07)
     const bredd = {}; [...text].forEach(ch => { if (/[0-9]/.test(ch) && !(ch in bredd)) bredd[ch] = matt(ch); });
     val.setAttribute('aria-label', text);
     const hjul = [], frag = document.createDocumentFragment();
