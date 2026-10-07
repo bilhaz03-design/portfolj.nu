@@ -108,12 +108,16 @@ a{color:inherit}
    till Talen bakom kurvan och linjen under raden. I Chrome 1512 × 771 stod linjen 891 px ned; 0,85 lägger den på 757.
    Bara breda skärmar: surfplatta och mobil behåller storleken. Muspositionerna räknas som andelar av getBoundingClientRect
    och följer med zoomen; räkneverket i wow.js delar med currentCSSZoom. Luften i högerspalten (104 px under mätarens
-   förklaring, skärmbilden 13:38) delas lika över och under mätaren; rubriken står kvar överst, staplarna mot foten. */
+   förklaring, skärmbilden 13:38; delad lika syntes den fortfarande 13:56) fylls av mätaren och staplarna: mätarens
+   yta växer med spaltens lediga höjd och ritningen (264 × 180 enheter, cx och cy oförändrade för wow.js) skalas upp
+   högst 1,2 gånger, eftersom linjer och text växer med ritningen (1,5 gånger såg klumpig ut), och staplarnas rader
+   får 13 px emellan. Det som blir över står jämnt över och under mätaren; höjden följer dagens rubrik och ingress. */
 @media (min-width:1181px){
   html{zoom:.85}
   .rail .graphic:first-child{flex:1 0 auto;display:flex;flex-direction:column}
-  .rail .graphic:first-child .chartwrap{margin-top:auto}
-  .rail .graphic:first-child > :last-child{margin-bottom:auto}
+  .rail .graphic:first-child .chartwrap{flex:1 1 auto;min-height:180px}
+  .rail .graphic:first-child .chartwrap svg{position:absolute;inset:0;margin:auto;width:100%;height:100%;max-width:317px;max-height:216px}
+  .rail .bars{gap:13px}
 }
 .chartwrap{position:relative}
 .chartwrap svg{display:block;width:100%;overflow:visible}
