@@ -79,7 +79,7 @@
 
   function artikel(p) {
     const a = el('article', 'inlagg'); a.id = p.id; a.lang = 'sv';
-    const kick = el('p', 'inl-kick', L('Utanför portföljen', 'Outside the portfolio')); if (T.en()) kick.lang = 'en'; a.append(kick);
+    const kick = el('p', 'inl-kick', L('Bloggen', 'The blog')); if (T.en()) kick.lang = 'en'; a.append(kick);
     if (T.en()) { const not = el('p', 'inl-sprak', 'This post is in Swedish.'); not.lang = 'en'; a.append(not); }
     a.append(el('h1', null, p.rubrik));
     const text = el('div', 'inl-text');
@@ -101,13 +101,16 @@
     return a;
   }
 
-  /* bloggens historik överst på sidan: alla inlägg, nyast först, datum och rubrik som länkar till inlägget (2026-10-07) */
-  function arkiv() {
+  /* bloggens historik: alla inlägg, nyast först, datum och rubrik som länkar till inläggets egen sida (2026-10-07);
+     överst i flödet och under inlägget på en inläggssida, där det aktuella är märkt */
+  function arkiv(aktuell) {
     const nav = el('nav', 'inl-arkiv'); nav.setAttribute('aria-label', L('Alla inlägg', 'All posts'));
     const ol = el('ol');
     INL.forEach(p => {
       const li = el('li'), tm = el('time', null, dag(p.datum)), a = el('a', null, p.rubrik);
-      tm.setAttribute('datetime', p.datum); a.href = '#' + p.id; a.lang = 'sv'; li.append(tm, a); ol.append(li);
+      tm.setAttribute('datetime', p.datum); a.href = T.href('inlagg-' + p.id + '.html'); a.lang = 'sv';
+      if (p.id === aktuell) a.setAttribute('aria-current', 'page');
+      li.append(tm, a); ol.append(li);
     });
     nav.append(el('h2', null, L('Alla inlägg', 'All posts')), ol);
     return nav;
@@ -115,14 +118,18 @@
 
   function sida() {
     const host = document.getElementById('inlaggen'); if (!host) return;
+    // inläggets egen sida (inlagg-<id>.html, byggd med texten i HTML för sökmotorerna) visar bara det inlägget
+    const id = host.dataset.id || '', lista = id ? INL.filter(p => p.id === id) : INL;
+    if (!lista.length) return;
     T.applyRoot();
-    document.title = INL[0].rubrik + ' · ' + L('Utanför portföljen', 'Outside the portfolio') + ' · Portföljen';
+    document.title = (id ? lista[0].rubrik + ' · ' : '') + L('Bloggen', 'The blog') + ' · Portföljen';
     const tag = document.getElementById('tag'); tag.textContent = '';
     const back = el('a', null, L('← Förstasidan', '← Front page')); back.href = T.href('index.html'); tag.append(back);
     T.dom.controls(document.getElementById('ctrls'), ch => { T.setState(ch, true); sida(); });
     T.dom.ears(document.getElementById('ear-left'), document.getElementById('ear-right'), T.upplaga());
-    host.textContent = ''; if (INL.length > 1) host.append(arkiv()); INL.forEach(p => host.append(artikel(p)));
-    INL.forEach(p => graf(document.getElementById('graf-' + p.id), p.graf));
+    host.textContent = ''; if (!id && INL.length > 1) host.append(arkiv()); lista.forEach(p => host.append(artikel(p)));
+    if (id && INL.length > 1) host.append(arkiv(id));
+    lista.forEach(p => graf(document.getElementById('graf-' + p.id), p.graf));
     T.dom.footer(document.getElementById('foot'));
   }
 
@@ -132,12 +139,13 @@
     const strip = document.getElementById('strip'); if (!strip) return;
     const p = INL[0]; let box = document.querySelector('.inl-topp');
     if (!box) { box = el('aside', 'inl-topp'); strip.before(box); }
-    box.textContent = ''; box.setAttribute('aria-label', L('Utanför portföljen', 'Outside the portfolio'));
-    const a = el('a'); a.href = T.href('inlagg.html', p.id);
+    box.textContent = ''; box.setAttribute('aria-label', L('Bloggen', 'The blog'));
+    const a = el('a'); a.href = T.href('inlagg-' + p.id + '.html');
     const h = el('span', 'inl-topp-h', p.rubrik), ing = el('span', 'inl-topp-t', forstaMeningen(ren(p.stycken[0]))), tm = el('time', null, dag(p.datum, false));
     h.lang = 'sv'; ing.lang = 'sv'; tm.setAttribute('datetime', p.datum);
-    a.append(el('span', 'inl-topp-k', L('Utanför portföljen', 'Outside the portfolio')), document.createTextNode(' '), h, document.createTextNode(' '), ing, document.createTextNode(' '), tm);
+    a.append(el('span', 'inl-topp-k', L('Bloggen', 'The blog')), document.createTextNode(' '), h, document.createTextNode(' '), ing, document.createTextNode(' '), tm);
     if (T.en()) { const not = el('span', 'inl-sprak', 'In Swedish'); not.lang = 'en'; a.append(document.createTextNode(' '), not); }
+    a.append(document.createTextNode(' '), el('span', 'inl-topp-cta', L('Läs inlägget →', 'Read the post →')));
     box.append(a);
   }
 

@@ -32,6 +32,9 @@
 .inl-arkiv time { font-family: var(--sans); font-size: 12.5px; color: var(--ink-3); min-width: 6.5em; white-space: nowrap; }
 .inl-arkiv a { font-family: var(--serif); font-size: 17px; font-weight: 700; color: var(--ink); text-decoration: none; }
 .inl-arkiv a:hover { text-decoration: underline; }
+.inl-arkiv a[aria-current] { color: var(--ink-2); }
+.inl-topp-cta { font-family: var(--sans); font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; border-bottom: 2px solid var(--ink); }
+.inl-topp a:hover .inl-topp-cta { border-bottom-color: transparent; }
 .inl-innehav { font-size: 16px; margin: 0 0 6px; }
 .inl-kallor { margin: 0; }
 /* förstasidan: raden ovanför remsan */

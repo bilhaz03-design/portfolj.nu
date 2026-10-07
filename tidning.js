@@ -934,7 +934,9 @@ function controls(host, onChange) {
       document.addEventListener('click', stang);
       document.addEventListener('keydown', e => { if (e.key === 'Escape') { const k = stang(); if (k) k.focus(); } });
     }
-    host.append(knapp, panel);
+    // bloggen syns i sidhuvudet på varje sida (2026-10-07: raden på förstasidan var för anonym för en ny besökare)
+    const blogg = el('a', 'ctrl-blogg', L('Bloggen', 'Blog')); blogg.href = href('inlagg.html'); blogg.dataset.k = 'blogg';
+    host.append(blogg, knapp, panel);
   } else host.append(g1, g2);
   if (!PUBLIK_ENDAST) host.append(pb);
   if (prevK) { const b = host.querySelector('[data-k="' + prevK + '"]'); if (b) b.focus(); }
