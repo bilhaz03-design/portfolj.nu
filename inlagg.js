@@ -15,6 +15,9 @@
   const nfc = {}, nf = (x, d) => (nfc[d] || (nfc[d] = new Intl.NumberFormat('sv-SE', { minimumFractionDigits: d, maximumFractionDigits: d }))).format(x).replace('-', '−');
   const varde = (s, v) => nf(v, s.decimaler) + (s.procent ? ' %' : '');
   const forstaMeningen = t => (t.match(/^.*?[.!?](?=\s|$)/) || [t])[0];
+  // fetstil: **…** i skribentens text ritas som strong, utan innerHTML (2026-10-07)
+  const ren = t => t.replace(/\*\*/g, '');
+  const rik = (e, t) => { t.split(/\*\*(.+?)\*\*/).forEach((del, i) => { if (del) e.append(i % 2 ? el('strong', null, del) : document.createTextNode(del)); }); return e; };
 
   /* tre små grafer, en per serie, med samma tidsaxel; avläsningen överst och i statusfältet för skärmläsare */
   function graf(host, g) {
@@ -83,7 +86,7 @@
     p.stycken.forEach((t, n) => {
       const s = el('p');
       if (n === 0) { const b = el('b', 'inl-datum'), tm = el('time', null, dag(p.datum)); tm.setAttribute('datetime', p.datum); b.append(tm); s.append(b, document.createTextNode(' ')); }
-      s.append(document.createTextNode(t)); text.append(s);
+      rik(s, t); text.append(s);
     });
     a.append(text);
     const fig = el('figure', 'inl-graf');
@@ -92,8 +95,22 @@
     fig.append(el('figcaption', null, p.graf.kalla.sv), tabell(p.graf));
     a.append(fig);
     const rad = (cls, lab, t) => { const e = el('p', cls); e.append(el('b', null, lab), document.createTextNode(' ' + t)); return e; };
-    a.append(rad('inl-innehav', 'Innehav:', p.innehav), rad('inl-kallor', 'Källor:', p.kallor));
+    // innehav och källor står bara när skribenten har skrivit dem (2026-10-07)
+    if (p.innehav) a.append(rad('inl-innehav', 'Innehav:', p.innehav));
+    if (p.kallor) a.append(rad('inl-kallor', 'Källor:', p.kallor));
     return a;
+  }
+
+  /* bloggens historik överst på sidan: alla inlägg, nyast först, datum och rubrik som länkar till inlägget (2026-10-07) */
+  function arkiv() {
+    const nav = el('nav', 'inl-arkiv'); nav.setAttribute('aria-label', L('Alla inlägg', 'All posts'));
+    const ol = el('ol');
+    INL.forEach(p => {
+      const li = el('li'), tm = el('time', null, dag(p.datum)), a = el('a', null, p.rubrik);
+      tm.setAttribute('datetime', p.datum); a.href = '#' + p.id; a.lang = 'sv'; li.append(tm, a); ol.append(li);
+    });
+    nav.append(el('h2', null, L('Alla inlägg', 'All posts')), ol);
+    return nav;
   }
 
   function sida() {
@@ -104,7 +121,7 @@
     const back = el('a', null, L('← Förstasidan', '← Front page')); back.href = T.href('index.html'); tag.append(back);
     T.dom.controls(document.getElementById('ctrls'), ch => { T.setState(ch, true); sida(); });
     T.dom.ears(document.getElementById('ear-left'), document.getElementById('ear-right'), T.upplaga());
-    host.textContent = ''; INL.forEach(p => host.append(artikel(p)));
+    host.textContent = ''; if (INL.length > 1) host.append(arkiv()); INL.forEach(p => host.append(artikel(p)));
     INL.forEach(p => graf(document.getElementById('graf-' + p.id), p.graf));
     T.dom.footer(document.getElementById('foot'));
   }
@@ -117,7 +134,7 @@
     if (!box) { box = el('aside', 'inl-topp'); strip.before(box); }
     box.textContent = ''; box.setAttribute('aria-label', L('Utanför portföljen', 'Outside the portfolio'));
     const a = el('a'); a.href = T.href('inlagg.html', p.id);
-    const h = el('span', 'inl-topp-h', p.rubrik), ing = el('span', 'inl-topp-t', forstaMeningen(p.stycken[0])), tm = el('time', null, dag(p.datum, false));
+    const h = el('span', 'inl-topp-h', p.rubrik), ing = el('span', 'inl-topp-t', forstaMeningen(ren(p.stycken[0]))), tm = el('time', null, dag(p.datum, false));
     h.lang = 'sv'; ing.lang = 'sv'; tm.setAttribute('datetime', p.datum);
     a.append(el('span', 'inl-topp-k', L('Utanför portföljen', 'Outside the portfolio')), document.createTextNode(' '), h, document.createTextNode(' '), ing, document.createTextNode(' '), tm);
     if (T.en()) { const not = el('span', 'inl-sprak', 'In Swedish'); not.lang = 'en'; a.append(document.createTextNode(' '), not); }
