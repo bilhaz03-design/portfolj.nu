@@ -101,21 +101,71 @@
     return a;
   }
 
-  /* kommentarerna (2026-10-08): GitHub Discussions i organisationen portfolj-nu via giscus, bara på inläggets egen sida.
-     giscus.js ligger på sajten; ramen kommer från giscus.app, det enda CSP:n släpper in där, och giscus.json i repot
-     tillåter bara https://portfolj.nu. Giscus finns inte på svenska (giscus.app/sv/widget gav 404). */
-  const KOMMENTARER = { repo: 'portfolj-nu/kommentarer', repoId: 'R_kgDOVALYew', category: 'Announcements', categoryId: 'DIC_kwDOVALYe84DHS28' };
+  /* kommentarerna (2026-10-08): utan konto. Namn och text går till sajtens egen funktion (Supabase-projektet portfolj i
+     Stockholm, källan i portfolj/kommentarer/index.ts) och syns först när de har granskats. Listan ritas som ren text
+     (textContent), aldrig som HTML. Fältet webbplats är en dold fälla för robotar. Utkastet ligger kvar när sidan ritas
+     om för språk eller tema. Ersatte GitHub-kommentarerna, som krävde ett konto. */
+  const KOM = 'https://dknavdczztzzbdmtzhot.supabase.co/functions/v1/kommentarer';
+  const utkast = { namn: '', text: '' };
+  const lokalDag = iso => { const d = new Date(iso); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
   function kommentarer(p) {
     const s = el('section', 'inl-kommentarer'); s.setAttribute('aria-label', L('Kommentarer', 'Comments'));
-    s.append(el('h2', null, L('Kommentarer', 'Comments')),
-      el('p', 'inl-kom-not', L('Kommentera med ditt GitHub-konto. Kommentarerna sparas i GitHub Discussions.', 'Comment with your GitHub account. Comments are stored in GitHub Discussions.')),
-      el('div', 'giscus'));
-    const sc = document.createElement('script'), mork = document.documentElement.getAttribute('data-tema') === 'mork';
-    sc.src = 'giscus.js'; sc.async = true;
-    Object.entries({ repo: KOMMENTARER.repo, repoId: KOMMENTARER.repoId, category: KOMMENTARER.category, categoryId: KOMMENTARER.categoryId,
-      mapping: 'specific', term: p.id, strict: '1', reactionsEnabled: '1', emitMetadata: '0', inputPosition: 'top',
-      theme: mork ? 'noborder_dark' : 'noborder_light', lang: 'en', loading: 'lazy' }).forEach(([k, v]) => { sc.dataset[k] = v; });
-    s.append(sc);
+    const lista = el('div', 'inl-kom-lista'), status = el('p', 'inl-kom-status'); status.setAttribute('role', 'status');
+    lista.append(el('p', 'inl-kom-tom', L('Hämtar kommentarerna …', 'Loading the comments …')));
+    const form = el('form', 'inl-kom-form'), fid = 'kom-' + p.id;
+    const falt = (tag, namn, etikett, attr) => {
+      const rad = el('p', 'inl-kom-falt'), lab = el('label', null, etikett), f = el(tag);
+      Object.assign(f, { id: fid + '-' + namn, name: namn }, attr); lab.htmlFor = f.id; rad.append(lab, f); return [rad, f];
+    };
+    const [radNamn, fNamn] = falt('input', 'namn', L('Namn (frivilligt)', 'Name (optional)'), { type: 'text', maxLength: 40, autocomplete: 'nickname', value: utkast.namn });
+    const [radText, fText] = falt('textarea', 'text', L('Kommentar', 'Comment'), { maxLength: 2000, required: true, rows: 5, value: utkast.text });
+    const falla = el('div', 'inl-kom-falla'), fFalla = el('input'); falla.setAttribute('aria-hidden', 'true');
+    Object.assign(fFalla, { type: 'text', name: 'webbplats', tabIndex: -1, autocomplete: 'off' }); falla.append(fFalla);
+    const knapp = el('button', null, L('Skicka', 'Send')); knapp.type = 'submit'; knapp.disabled = true;
+    const rad = el('p', 'inl-kom-skicka'); rad.append(knapp, status);
+    form.append(radNamn, radText, falla, rad);
+    fNamn.addEventListener('input', () => { utkast.namn = fNamn.value; });
+    fText.addEventListener('input', () => { utkast.text = fText.value; });
+    s.append(el('h2', null, L('Kommentarer', 'Comments')), lista, el('h3', null, L('Skriv en kommentar', 'Write a comment')), form,
+      el('p', 'inl-kom-not', L('Kommentarerna granskas innan de visas. Vi sparar bara namnet och texten: ingen e-post, inget konto och inga kakor.',
+        'Comments are reviewed before they appear. We store only the name and the text: no email, no account and no cookies.')));
+    let stampel = null;
+    const rita = ks => {
+      lista.textContent = '';
+      if (!ks.length) { lista.append(el('p', 'inl-kom-tom', L('Inga kommentarer ännu.', 'No comments yet.'))); return; }
+      const ol = el('ol');
+      ks.forEach(k => {
+        const li = el('li'), tm = el('time', null, dag(lokalDag(k.skapad))); tm.setAttribute('datetime', k.skapad);
+        li.append(el('b', null, k.namn), document.createTextNode(' '), tm, el('p', null, k.text)); ol.append(li);
+      });
+      lista.append(ol);
+    };
+    fetch(KOM + '?inlagg=' + encodeURIComponent(p.id), { credentials: 'omit' })
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(d => { rita(Array.isArray(d.kommentarer) ? d.kommentarer : []); stampel = d.stampel || null; knapp.disabled = !stampel; })
+      .catch(() => { lista.textContent = ''; lista.append(el('p', 'inl-kom-tom', L('Kommentarerna kunde inte hämtas just nu. Försök igen senare.', 'The comments could not be loaded right now. Please try again later.'))); });
+    const MEDD = {
+      'for-snabbt': L('Vänta några sekunder och skicka igen.', 'Wait a few seconds and send again.'),
+      gammal: L('Sidan har varit öppen länge. Ladda om den och skicka igen.', 'The page has been open for a long time. Reload it and send again.'),
+      stampel: L('Ladda om sidan och skicka igen.', 'Reload the page and send again.'),
+      'for-manga': L('Du har skickat flera kommentarer nyss. Vänta en stund.', 'You have just sent several comments. Please wait a while.'),
+      falt: L('Kommentaren får vara högst tvåtusen tecken och namnet högst fyrtio.', 'The comment may be at most two thousand characters and the name at most forty.'),
+      'kon-full': L('Kommentarerna tar en paus just nu. Försök igen senare.', 'Comments are paused right now. Please try again later.')
+    };
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      if (!stampel || knapp.disabled) return;
+      knapp.disabled = true; status.textContent = L('Skickar …', 'Sending …');
+      // som text/plain: ett enkelt anrop utan förfrågan i förväg; funktionen läser JSON ur kroppen och kräver ursprunget portfolj.nu
+      fetch(KOM, { method: 'POST', credentials: 'omit', body: JSON.stringify({ inlagg: p.id, namn: fNamn.value, text: fText.value, webbplats: fFalla.value, t: stampel.t, s: stampel.s }) })
+        .then(r => r.json().catch(() => ({})).then(d => ({ st: r.status, d })))
+        .then(({ st, d }) => {
+          if (st === 202) { fText.value = ''; utkast.text = ''; status.textContent = L('Tack! Kommentaren visas här när den har granskats.', 'Thank you! The comment appears here once it has been reviewed.'); }
+          else status.textContent = MEDD[d.fel] || L('Det gick inte att skicka. Försök igen senare.', 'It could not be sent. Please try again later.');
+        })
+        .catch(() => { status.textContent = L('Det gick inte att skicka. Kontrollera anslutningen och försök igen.', 'It could not be sent. Check the connection and try again.'); })
+        .finally(() => { knapp.disabled = false; });
+    });
     return s;
   }
 

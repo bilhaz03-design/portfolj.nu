@@ -496,3 +496,11 @@ details.numbers table{margin-top:8px;max-width:760px}
   .topbar:has(.inst-knapp) .tag{flex:1 1 auto;flex-basis:auto}
   .topbar:has(.inst-knapp) .ctrls{justify-content:flex-end}
 }
+/* Förhandstexten (2026-10-08): sidornas text i HTML för sökrobotar som inte kör JavaScript (bygget skriver in den).
+   Läsaren med JavaScript ser aldrig den: klassen har-js sätts i huvudet före första målningen. */
+html.har-js .forhand { display: none; }
+.forhand { max-width: 760px; margin: 0 auto; padding: 20px 16px 28px; }
+.forhand h1 { font-family: var(--serif); font-size: 34px; line-height: 1.1; margin: 0 0 12px; }
+.forhand h2 { font-family: var(--sans); font-size: 16px; margin: 22px 0 6px; }
+.forhand h3 { font-family: var(--sans); font-size: 14px; margin: 16px 0 4px; }
+.forhand p, .forhand li { font-size: 17px; line-height: 1.55; }

@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /granska.html
 
 Sitemap: https://portfolj.nu/sitemap.xml

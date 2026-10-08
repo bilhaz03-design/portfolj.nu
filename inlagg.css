@@ -33,12 +33,38 @@
 .inl-arkiv a { font-family: var(--serif); font-size: 17px; font-weight: 700; color: var(--ink); text-decoration: none; }
 .inl-arkiv a:hover { text-decoration: underline; }
 .inl-arkiv a[aria-current] { color: var(--ink-2); }
-/* kommentarerna (2026-10-08): giscus-ramen från giscus.app; dessa rader ersätter giscus egen default.css */
+/* kommentarerna (2026-10-08): utan konto, granskade innan de visas; texten radbryts som den skrevs */
 .inl-kommentarer { max-width: 760px; margin: 0 auto; padding: 18px 0 8px; border-top: 1px solid var(--ink); }
-.inl-kommentarer h2 { font-family: var(--sans); font-size: 14px; font-weight: 700; margin: 0 0 2px; }
-.inl-kom-not { font-family: var(--sans); font-size: 12.5px; color: var(--ink-3); margin: 0 0 10px; }
-.giscus, .giscus-frame { width: 100%; min-height: 150px; }
-.giscus-frame { border: none; color-scheme: normal; }
+.inl-kommentarer h2 { font-family: var(--sans); font-size: 14px; font-weight: 700; margin: 0 0 8px; }
+.inl-kommentarer h3 { font-family: var(--sans); font-size: 13px; font-weight: 700; color: var(--ink-2); margin: 20px 0 8px; }
+.inl-kom-lista ol { list-style: none; margin: 0; padding: 0; }
+.inl-kom-lista li { border-top: 1px solid var(--hair); padding: 10px 0; }
+.inl-kom-lista li b { font-family: var(--sans); font-size: 14px; }
+.inl-kom-lista li time { font-family: var(--sans); font-size: 12.5px; color: var(--ink-3); margin-left: 8px; }
+.inl-kom-lista li p { font-size: 17px; line-height: 1.55; margin: 4px 0 0; white-space: pre-line; overflow-wrap: anywhere; }
+.inl-kom-tom, .inl-kom-not { font-family: var(--sans); font-size: 12.5px; color: var(--ink-3); margin: 0 0 10px; }
+.inl-kom-falt { display: flex; flex-direction: column; gap: 4px; margin: 0 0 10px; }
+.inl-kom-falt label { font-family: var(--sans); font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+.inl-kom-falt input, .inl-kom-falt textarea { font: inherit; font-size: 16px; color: var(--ink); background: transparent; border: 1px solid var(--hair); border-radius: 0; padding: 8px 10px; max-width: 100%; box-sizing: border-box; }
+.inl-kom-falt input { width: 320px; }
+.inl-kom-falt textarea { width: 100%; min-height: 110px; line-height: 1.5; resize: vertical; }
+.inl-kom-falt input:focus-visible, .inl-kom-falt textarea:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.inl-kom-skicka { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin: 0 0 10px; }
+.inl-kom-skicka button { font-family: var(--sans); font-size: 14px; font-weight: 700; color: var(--paper); background: var(--ink); border: 0; padding: 8px 18px; cursor: pointer; }
+.inl-kom-skicka button:disabled { opacity: .5; cursor: default; }
+.inl-kom-status { font-family: var(--sans); font-size: 13px; color: var(--ink-2); margin: 0; }
+.inl-kom-falla { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+/* granskningssidan (2026-10-08): ägarens länk från Telegram, inte för sökmotorer */
+.granska { max-width: 640px; margin: 0 auto; padding: 28px 16px; }
+.granska .nameplate { font-family: var(--serif); font-size: 34px; font-weight: 700; margin: 0 0 14px; }
+.granska h1 { font-family: var(--sans); font-size: 16px; margin: 0 0 8px; }
+.granska #status { font-family: var(--sans); font-size: 14px; color: var(--ink-2); }
+.granska-meta { font-family: var(--sans); font-size: 13px; color: var(--ink-2); margin: 14px 0 6px; }
+.granska #text { font-size: 18px; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; border-left: 3px solid var(--ink); padding-left: 12px; margin: 0 0 16px; }
+.granska #knappar button { font-family: var(--sans); font-size: 15px; font-weight: 700; color: #fff; border: 0; padding: 11px 20px; margin: 0 8px 8px 0; cursor: pointer; }
+.granska #publicera { background: var(--pos); }
+.granska #tabort { background: var(--neg); }
+.granska #knappar button:disabled { opacity: .5; cursor: default; }
 .inl-topp-cta { font-family: var(--sans); font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; border-bottom: 2px solid var(--ink); }
 .inl-topp a:hover .inl-topp-cta { border-bottom-color: transparent; }
 .inl-innehav { font-size: 16px; margin: 0 0 6px; }

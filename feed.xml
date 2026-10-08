@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="sv">
+<title>Portföljen: bloggen</title>
+<subtitle>Inlägg om marknaderna, räntorna och aktierna bakom ett öppet försök att slå världsindex MSCI World.</subtitle>
+<link href="https://portfolj.nu/feed.xml" rel="self" type="application/atom+xml"/>
+<link href="https://portfolj.nu/inlagg.html" rel="alternate" type="text/html"/>
+<id>https://portfolj.nu/feed.xml</id>
+<updated>2026-10-07T12:00:00+00:00</updated>
+<author><name>Portföljen</name><uri>https://portfolj.nu/</uri></author>
+<entry>
+<title>När 5 % börjar konkurrera med börsen</title>
+<link href="https://portfolj.nu/inlagg-nar-5-procent-konkurrerar-med-borsen.html" rel="alternate" type="text/html"/>
+<id>https://portfolj.nu/inlagg-nar-5-procent-konkurrerar-med-borsen.html</id>
+<published>2026-10-07T12:00:00+00:00</published>
+<updated>2026-10-07T12:00:00+00:00</updated>
+<summary>Idag såg marknaden ganska röd ut och jag blev nyfiken på varför. Jag förstår inte varje del av marknaden till 100 procent och vissa samband glömmer man lätt …</summary>
+<content type="html">&lt;p&gt;&lt;b class="inl-datum"&gt;&lt;time datetime="2026-10-07"&gt;7 okt 2026&lt;/time&gt;&lt;/b&gt; Idag såg marknaden ganska röd ut och jag blev nyfiken på varför. Jag förstår inte varje del av marknaden till 100 procent och vissa samband glömmer man lätt bort, så jag gick ner i ett litet researchhål.&lt;/p&gt;
+&lt;p&gt;Det jag fastnade för var &lt;strong&gt;USA:s 10 åriga statsobligation&lt;/strong&gt;. Förenklat lånar investerare ut pengar till amerikanska staten och får avkastning för det. Just nu ligger den avkastningen, yielden, över &lt;strong&gt;5 procent&lt;/strong&gt;, på nivåer vi inte sett sedan 2002.&lt;/p&gt;
+&lt;p&gt;Och där börjar det bli intressant för börsen.&lt;/p&gt;
+&lt;p&gt;Varför ska en investerare ta betydligt större risk i aktier om amerikanska staten redan erbjuder över 5 procent? Aktier kan självklart ge mycket mer, men när det säkra alternativet blir bättre måste också ersättningen för att ta aktierisk bli bättre.&lt;/p&gt;
+&lt;p&gt;Ett enkelt sätt att se det är &lt;strong&gt;earnings yield (E/P)&lt;/strong&gt;. S&amp;amp;P 500 handlas runt &lt;strong&gt;19x Forward P/E&lt;/strong&gt;, alltså 19 gånger nästa års förväntade vinster, vilket motsvarar ungefär &lt;strong&gt;5,3 procent i forward earnings yield&lt;/strong&gt;. Samtidigt ligger den amerikanska 10 åringen runt &lt;strong&gt;5,3 procent&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;S&amp;amp;P 500 E/P: ~5,3 %&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;10 årig statsobligation: ~5,3 %&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;Ser man problemet?&lt;/p&gt;
+&lt;p&gt;Skillnaden mellan aktiernas earnings yield och den riskfria räntan kan användas som en &lt;strong&gt;förenklad proxy för equity risk premium (ERP)&lt;/strong&gt;: hur mycket extra jag får betalt för att välja aktier framför statsobligationer. När det gapet blir väldigt litet blir aktier svårare att motivera om inte vinsterna fortsätter växa snabbt.&lt;/p&gt;
+&lt;p&gt;Det betyder däremot inte att &lt;strong&gt;10 års yield upp = börsen ner&lt;/strong&gt;. Nasdaq har nått rekord samtidigt som räntorna stigit, eftersom framför allt AI och tech har levererat tillräckligt stark vinsttillväxt för att väga upp den högre räntan.&lt;/p&gt;
+&lt;p&gt;Därför är det tre saker jag vill följa framåt: &lt;strong&gt;10 års yielden mot earnings yield, EPS revideringar och förväntad EPS tillväxt.&lt;/strong&gt; Inte bara om Nvidia eller något annat bolag slår nästa kvartals EPS, utan om rapporterna får marknaden att höja eller sänka förväntningarna på framtida vinster.&lt;/p&gt;
+&lt;p&gt;Min slutsats blev ganska enkel:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Den höga 10 års yielden behöver inte döda börsen. Den höjer ribban.&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;Ju mer investerare kan få nästan riskfritt, desto mer måste bolagen bevisa att dagens höga förväntningar är värda risken.&lt;/p&gt;
+</content>
+</entry>
+<entry>
+<title>När guldet tappar mark</title>
+<link href="https://portfolj.nu/inlagg-nar-guldet-tappar-mark.html" rel="alternate" type="text/html"/>
+<id>https://portfolj.nu/inlagg-nar-guldet-tappar-mark.html</id>
+<published>2026-10-06T12:00:00+00:00</published>
+<updated>2026-10-06T12:00:00+00:00</updated>
+<summary>Guldets senaste nedgång kan se ut som ett tecken på högre riskaptit, men bilden är större än så. Guldet föll 6,6 procent i september samtidigt som …</summary>
+<content type="html">&lt;p&gt;&lt;b class="inl-datum"&gt;&lt;time datetime="2026-10-06"&gt;6 okt 2026&lt;/time&gt;&lt;/b&gt; Guldets senaste nedgång kan se ut som ett tecken på högre riskaptit, men bilden är större än så. Guldet föll 6,6 procent i september samtidigt som amerikansk teknik fortsatte visa styrka.&lt;/p&gt;
+&lt;p&gt;Jag tror inte att riskaptit är hela förklaringen. Amerikanska långräntor steg samtidigt som dollarn stärktes, två faktorer som normalt pressar guld genom högre alternativkostnad och en starkare dollar.&lt;/p&gt;
+&lt;p&gt;Min tolkning är därför inte att guld ner automatiskt betyder riskaptit upp. Om guldet istället börjar stiga samtidigt som räntorna faller behöver det inte heller betyda risk off. Det kan helt enkelt vara guldet som får tillbaka stödet från lägre räntor.&lt;/p&gt;
+&lt;p&gt;Tekniskt ser jag området runt 4100 till 4225 som den tydligaste konsolideringen, medan 3955 är ett större stöd längre ner. Guldet har stängt ned fem av de senaste sex veckorna och fortsatt sätta lägre toppar. En close under swing low hade gjort mig mer negativ. Över 4259 handlar det inte bara om att bryta ett motstånd. Det hade varit första riktiga tecknet på att serien av lägre toppar börjar ta slut. Då börjar jag åter titta mot tidigare toppar och i förlängningen ATH.&lt;/p&gt;
+</content>
+</entry>
+</feed>

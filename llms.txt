@@ -1,0 +1,21 @@
+# Portföljen
+
+> Ett öppet försök att slå världsindex MSCI World med fem verkliga positioner. Varje köp jämförs med samma insats i MSCI World samma dag. Talen räknas av en maskin ur marknadsdata; texterna och blogginläggen skrivs för hand.
+
+Talen uppdateras automatiskt varje vardagskväll efter stängningen; senaste kurser: stängningen onsdag 7 oktober 2026. Sajten är på svenska, med engelska bakom språkväxeln. Den visar procent, procentenheter, vikter och kurser, inga kronbelopp, antal eller konton.
+
+## Sidor
+
+- [Förstasidan](https://portfolj.nu/): dagens upplaga, portföljen mot MSCI World dag för dag
+- [Om portföljen](https://portfolj.nu/metod.html): syftet, hur jämförelsen räknas, riktkurserna ur optionspriser och vad sidan inte visar
+- [Bloggen](https://portfolj.nu/inlagg.html): alla inlägg, nyast först
+
+## Inlägg
+
+- [När 5 % börjar konkurrera med börsen](https://portfolj.nu/inlagg-nar-5-procent-konkurrerar-med-borsen.html) (2026-10-07): Idag såg marknaden ganska röd ut och jag blev nyfiken på varför. Jag förstår inte varje del av marknaden till 100 procent och vissa samband glömmer man lätt …
+- [När guldet tappar mark](https://portfolj.nu/inlagg-nar-guldet-tappar-mark.html) (2026-10-06): Guldets senaste nedgång kan se ut som ett tecken på högre riskaptit, men bilden är större än så. Guldet föll 6,6 procent i september samtidigt som …
+
+## Valfritt
+
+- [Flöde (Atom)](https://portfolj.nu/feed.xml)
+- [Webbkarta](https://portfolj.nu/sitemap.xml)
